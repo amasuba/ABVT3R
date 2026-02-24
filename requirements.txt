@@ -5,5 +5,7 @@ opencv-python>=4.5
 matplotlib>=3.3
 # open3d>=0.15  # No pip wheel for Python 3.13; install via: conda install -c conda-forge open3d
 pyserial>=3.5
-# Optional / hardware-specific (may not be pip-installable on Windows):
-# pylibfreenect2
+# Intel RealSense SDK Python bindings (replaces pylibfreenect2 / Kinect V2 driver)
+# On NVIDIA Jetson Nano install from the official librealsense wheel or build from source:
+#   https://github.com/IntelRealSense/librealsense/blob/master/doc/installation_jetson.md
+pyrealsense2>=2.50

@@ -1,6 +1,7 @@
 """
-Bidirectional communication between Jetson and Odroid
-This is the client code on the jetson
+GUI client that communicates with the Jetson Nano host server over TCP.
+Sends control commands and receives progress updates and result files.
+Runs on any machine with a network connection to the Jetson Nano.
 """
 
 import socket

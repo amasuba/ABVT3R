@@ -1,6 +1,8 @@
 """
-Bidirectional communications between the host and client
-communications between my Jetson and Odroid
+Host server running on the NVIDIA Jetson Nano.
+Manages bidirectional TCP socket communications with the GUI client,
+controls the Arduino stepper-motor gantry, triggers Intel RealSense
+camera captures, and executes the full processing pipeline.
 """
 # import the Integration class
 from integration import Integration

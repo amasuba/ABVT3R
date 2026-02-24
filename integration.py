@@ -30,8 +30,16 @@ class Integration:
         # Processing variables initialization
         # Parameters
         self.icp_param = {'max_iterations': 300, 'tolerance': 1e-6, 'max_corr_dist': 0.10}
-        self.fx, self.fy = 365.60, 365.15
-        self.cx, self.cy = 248.82, 208.63
+
+        # Intrinsic parameters for Intel RealSense D435 depth stream @ 640x480.
+        # These are typical factory defaults; for best accuracy read them from
+        # the device at runtime via:
+        #   profile = pipeline.start(config)
+        #   intr = profile.get_stream(rs.stream.depth)\
+        #                  .as_video_stream_profile().get_intrinsics()
+        #   fx, fy, cx, cy = intr.fx, intr.fy, intr.ppx, intr.ppy
+        self.fx, self.fy = 383.58, 383.58
+        self.cx, self.cy = 319.44, 240.47
         self.x_min, self.x_max = -0.5, 0.5
         self.y_min, self.y_max = -0.6, 0.65
         self.z_min, self.z_max = 0.2, 1.5

@@ -157,8 +157,11 @@ This project is academic work completed at the University of Pretoria. Please re
 
 ## Author
 
-Odwa Nombambela  
-University of Pretoria, EECE Department  
+**Aaron Masuba**  
+Student ID: 25737806  
+Email: [aaron.masuba@tuks.co.za](mailto:aaron.masuba@tuks.co.za)  
+University of Pretoria, Department of Electrical, Electronic and Computer Engineering  
+Program: MEng in Computer Engineering  
 Project Supervisor: Prof. H. Myburgh
 
 ## Citation
@@ -166,25 +169,61 @@ Project Supervisor: Prof. H. Myburgh
 If you use this work in your research, please cite:
 
 ```
-Nombambela, O. (2025). Automated Plant Biomass Estimation System using 3D Reconstruction 
-from Dual RGB-D Cameras. Final Year Project Report, University of Pretoria.
+Masuba, A. (2025). Automated Plant Biomass Estimation System using 3D Reconstruction 
+from Dual RGB-D Cameras. MEng Project Report, University of Pretoria.
 ```
 
-**Quick Start (smoke test without Kinect)**
+## Quick Start
 
-- Install dependencies from `requirements.txt`.
+### Smoke test (no Kinect required)
 
-- Run the smoke test which uses the included `data_collection` depth files and writes outputs to `reconstruction_output`:
+Run these commands one at a time in your terminal:
 
-```bash
+**1. Navigate to the project folder**
+```powershell
+cd C:\Users\u25737806\ABVT3R
+```
+
+**2. Install dependencies**
+```powershell
+python -m pip install numpy scipy scikit-learn opencv-python matplotlib pyserial
+```
+> Note: `open3d` has no wheel for Python 3.13. The pipeline will automatically skip PLY/OBJ export if `open3d` is not available — all NumPy outputs are still saved.
+
+**3. Run the smoke test**
+```powershell
 python smoke_run.py
 ```
 
-- To run the full client/server system (requires Kinect drivers and Linux-compatible libraries):
-  - Start the host on the processing machine: `python host.py`
-  - Start the GUI client on the operator machine: `python GUI.py`
+Expected final output:
+```
+[100%] Pipeline complete!
+Smoke run completed successfully.
+```
 
-Notes:
-- The smoke test runs the pipeline with existing `.npy` captures in `data_collection/` and does not require Kinect hardware.
-- Kinect capture scripts and the full pipeline require platform-specific native libraries (`pylibfreenect2` / `freenect2`, `open3d`). See `requirements.txt` and README sections above for details.
+**4. View the results**
+```powershell
+Get-Content reconstruction_output\reconstruction_stats_plant_1.txt
+```
+
+Outputs are written to `reconstruction_output/`:
+| File | Description |
+|---|---|
+| `reconstruction_stats_plant_1.txt` | Dimensions, volume, surface area, biomass prediction, processing time |
+| `final_vertices_plant_1.npy` | Mesh vertex coordinates |
+| `final_triangles_plant_1.npy` | Mesh triangle indices |
+| `merged_points_plant_1.npy` | Merged registered point cloud |
+| `surface_normals_plant_1.npy` | Surface normals |
+
+### Full client/server system (requires Kinect hardware + Linux)
+
+1. Start the host on the processing machine (ODROID/Jetson):
+```bash
+python host.py
+```
+2. Start the GUI client on the operator machine:
+```bash
+python GUI.py
+```
+> Requires: `pylibfreenect2` or `freenect2`, `open3d`, Arduino serial connection, and a Linux-based platform with Kinect V2 drivers.
 

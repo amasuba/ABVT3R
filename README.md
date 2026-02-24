@@ -1,6 +1,6 @@
-# Automated Plant Biomass Estimation System
+# Automated Biomass Estimation using Self-Supervised Vision Transformers
 
-A non-destructive plant phenotyping system for biomass estimation through 3D reconstruction using dual Kinect V2 RGB-D cameras. The system employs a four-view capture strategy with voxel-based reconstruction and Random Forest regression to achieve automated plant biomass predictions within 2 minutes per specimen.
+A non-destructive plant phenotyping system for biomass estimation leveraging self-supervised vision transformers combined with dual Kinect V2 RGB-D cameras. The system employs a four-view capture strategy with voxel-based 3D reconstruction and transformer-based feature learning to achieve automated plant biomass predictions within 2 minutes per specimen.
 
 ## Project Overview
 
@@ -169,8 +169,8 @@ Project Supervisor: Prof. H. Myburgh
 If you use this work in your research, please cite:
 
 ```
-Masuba, A. (2025). Automated Plant Biomass Estimation System using 3D Reconstruction 
-from Dual RGB-D Cameras. MEng Project Report, University of Pretoria.
+Masuba, A. (2025). Automated Biomass Estimation using Self-Supervised Vision Transformers.
+MEng Project Report, University of Pretoria.
 ```
 
 ## Quick Start

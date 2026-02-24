@@ -1,0 +1,35 @@
+3D RECONSTRUCTION RESULTS (FU4.4)
+==================================================
+
+INPUT DATA:
+  Views processed: 4 (0°, 90°, 180°, 270°)
+  Total input points: 17,901
+
+MERGING RESULTS:
+  Merged points: 14,345
+  Coverage balance: 0.722
+  Density uniformity: 0.414
+
+FINAL MESH:
+  Vertices: 29,160
+  Triangles: 58,421
+  Surface area: 1.431315 m²
+  Volume: 0.00354319 m³
+
+QUALITY METRICS:
+  Overall quality: 0.715
+  Geometric fidelity: 1.000
+  Surface smoothness: 0.000
+  Is manifold: True
+  Holes filled: 0
+
+PLANT DIMENSIONS:
+  Height (Y): 42.00 cm
+  Width (X): 32.90 cm
+  Depth (Z): 37.80 cm
+
+PLANT BIOMASS ESTIMATION:
+  RF Biomass Prediction: 1.31kg
+
+PROCESSING TIME: 
+  Total execution time: 9.99 seconds

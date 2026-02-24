@@ -9,7 +9,10 @@ from classes.random_forest_class import BiomassRandomForest, RandomForestRegress
 
 """ Standard library imports """
 import numpy as np
-import open3d as o3d
+try:
+    import open3d as o3d
+except Exception:
+    o3d = None
 import matplotlib.pyplot as plt
 import socket
 import threading
@@ -160,28 +163,39 @@ class Integration:
             print(f"Created directory: {output_dir}/")
 
         # Save point cloud as PLY using Open3D
-        pcd_final = o3d.geometry.PointCloud()
-        pcd_final.points = o3d.utility.Vector3dVector(reconstruction_results['merged_cloud'])
+        if o3d is not None:
+            pcd_final = o3d.geometry.PointCloud()
+            pcd_final.points = o3d.utility.Vector3dVector(reconstruction_results['merged_cloud'])
 
-        # Color by height using viridis gradient (instead of by view)
-        merged_cloud = reconstruction_results['merged_cloud']
-        y_coords = merged_cloud[:, 1]
-        y_normalized = (y_coords - y_coords.min()) / (y_coords.max() - y_coords.min())
-        point_colors = plt.cm.viridis(y_normalized)[:, :3]  # Use viridis gradient
-        pcd_final.colors = o3d.utility.Vector3dVector(point_colors)
+            # Color by height using viridis gradient (instead of by view)
+            merged_cloud = reconstruction_results['merged_cloud']
+            y_coords = merged_cloud[:, 1]
+            if y_coords.max() != y_coords.min():
+                y_normalized = (y_coords - y_coords.min()) / (y_coords.max() - y_coords.min())
+            else:
+                y_normalized = y_coords * 0.0
+            point_colors = plt.cm.viridis(y_normalized)[:, :3]  # Use viridis gradient
+            pcd_final.colors = o3d.utility.Vector3dVector(point_colors)
 
-        # Save with the plant number in filename
-        o3d.io.write_point_cloud(f"{output_dir}/merged_point_cloud_plant_{self.plant_count}.ply", pcd_final)
+            # Save with the plant number in filename
+            try:
+                o3d.io.write_point_cloud(f"{output_dir}/merged_point_cloud_plant_{self.plant_count}.ply", pcd_final)
+            except Exception as e:
+                print(f"Warning: failed to write point cloud with Open3D: {e}")
 
-        # Save mesh as PLY and OBJ
-        mesh_final = o3d.geometry.TriangleMesh()
-        mesh_final.vertices = o3d.utility.Vector3dVector(reconstruction_results['final_vertices'])
-        mesh_final.triangles = o3d.utility.Vector3iVector(reconstruction_results['final_triangles'])
-        mesh_final.compute_vertex_normals()
+            # Save mesh as PLY and OBJ
+            try:
+                mesh_final = o3d.geometry.TriangleMesh()
+                mesh_final.vertices = o3d.utility.Vector3dVector(reconstruction_results['final_vertices'])
+                mesh_final.triangles = o3d.utility.Vector3iVector(reconstruction_results['final_triangles'])
+                mesh_final.compute_vertex_normals()
 
-        o3d.io.write_triangle_mesh(f"{output_dir}/final_mesh_plant_{self.plant_count}.ply", mesh_final)
-
-        o3d.io.write_triangle_mesh(f"{output_dir}/final_mesh_plant_{self.plant_count}.obj", mesh_final)
+                o3d.io.write_triangle_mesh(f"{output_dir}/final_mesh_plant_{self.plant_count}.ply", mesh_final)
+                o3d.io.write_triangle_mesh(f"{output_dir}/final_mesh_plant_{self.plant_count}.obj", mesh_final)
+            except Exception as e:
+                print(f"Warning: failed to write mesh with Open3D: {e}")
+        else:
+            print("Open3D not available — skipping PLY/OBJ export. Numpy arrays will still be saved.")
 
         # Save numpy arrays
         np.save(f"{output_dir}/merged_points_plant_{self.plant_count}.npy", reconstruction_results['merged_cloud'])

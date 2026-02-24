@@ -1,5 +1,8 @@
 import numpy as np
-import open3d as o3d
+try:
+    import open3d as o3d
+except ImportError:
+    o3d = None
 from sklearn.neighbors import NearestNeighbors
 from scipy.spatial import Delaunay
 

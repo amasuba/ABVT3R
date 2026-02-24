@@ -169,3 +169,22 @@ If you use this work in your research, please cite:
 Nombambela, O. (2025). Automated Plant Biomass Estimation System using 3D Reconstruction 
 from Dual RGB-D Cameras. Final Year Project Report, University of Pretoria.
 ```
+
+**Quick Start (smoke test without Kinect)**
+
+- Install dependencies from `requirements.txt`.
+
+- Run the smoke test which uses the included `data_collection` depth files and writes outputs to `reconstruction_output`:
+
+```bash
+python smoke_run.py
+```
+
+- To run the full client/server system (requires Kinect drivers and Linux-compatible libraries):
+  - Start the host on the processing machine: `python host.py`
+  - Start the GUI client on the operator machine: `python GUI.py`
+
+Notes:
+- The smoke test runs the pipeline with existing `.npy` captures in `data_collection/` and does not require Kinect hardware.
+- Kinect capture scripts and the full pipeline require platform-specific native libraries (`pylibfreenect2` / `freenect2`, `open3d`). See `requirements.txt` and README sections above for details.
+

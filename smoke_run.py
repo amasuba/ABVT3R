@@ -5,7 +5,7 @@ Smoke test runner for the pipeline.
 Runs `Integration.start(1)` using the included `data_collection/` files
 and writes outputs to `reconstruction_output/`.
 
-This does not require Kinect hardware but does require the Python
+This does not require Intel RealSense hardware but does require the Python
 dependencies listed in `requirements.txt`.
 """
 import sys

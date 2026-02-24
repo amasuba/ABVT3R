@@ -167,7 +167,8 @@ Student ID: 25737806
 Email: [aaron.masuba@tuks.co.za](mailto:aaron.masuba@tuks.co.za)  
 University of Pretoria, Department of Electrical, Electronic and Computer Engineering  
 Program: MEng in Computer Engineering  
-Project Supervisor: Prof. H. Myburgh
+Research Supervisor: Prof. H. Myburgh
+Research co-Supervisor: Prof. A. De Freitas
 
 ## Citation
 

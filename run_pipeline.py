@@ -1,6 +1,34 @@
 #!/usr/bin/env python3
 """
-Full biomass estimation pipeline runner.
+ABVT3R — Master Pipeline Runner
+=================================
+Orchestrates all subsystems for batch processing.
+
+Usage
+-----
+    # New 30-degree dataset — run full Procedure Alpha on all specimens
+    python run_pipeline.py alpha --all
+
+    # New dataset — specific specimen
+    python run_pipeline.py alpha --specimen DG041_20260609_B02
+
+    # Legacy 4-view data
+    python run_pipeline.py alpha --legacy --plants 1 2 3 5
+
+    # Biomass dashboard (reads procedure_alpha/outputs/)
+    python run_pipeline.py dashboard
+
+    # Cross-method evaluation
+    python run_pipeline.py evaluate --export results/comparison.pdf
+
+    # Simulate a 12-view capture session (no hardware)
+    python run_pipeline.py capture DG042_20260610_B02 --simulate
+
+    # Launch dataset viewer
+    python run_pipeline.py viewer
+
+LEGACY USAGE (still supported):
+    python run_pipeline.py --legacy-mode [plant_ids...]
 
 Runs for each plant ID that has complete depth data in data_collection/:
   1. Preprocessing  — depth maps → filtered point clouds

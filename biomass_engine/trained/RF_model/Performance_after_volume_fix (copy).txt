@@ -1,0 +1,7 @@
+Final Model Performance:
+  R²: 0.6549
+  RMSE: 0.1006g
+  MAE: 0.0769g
+  MAPE: 6.16%
+  Penalty: 0.10
+

@@ -1,15 +1,10 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
-Intel RealSense Live Viewer - Camera B (Red)
-Displays aligned colour and depth streams side-by-side in real-time.
+Kinect v2 Live Viewer - Camera B (Red)
+Displays colour and depth streams side-by-side in real-time.
 
-Replaces : Kinect V2 viewer (pylibfreenect2)
-Platform : NVIDIA Jetson Nano
-Hardware : Intel RealSense D415 / D435 / D435i / D455
-
-Usage
------
-    python viewer_red.py [--serial <DEVICE_SERIAL>]
+Hardware : Microsoft Kinect v2
+Usage    : python viewer_red.py [--serial <DEVICE_SERIAL>]
 
 Press 'q' or ESC to quit.
 """
@@ -18,121 +13,119 @@ import numpy as np
 import cv2
 import argparse
 
+KINECT_AVAILABLE = False
 try:
-    import pyrealsense2 as rs
+    from pylibfreenect2 import (
+        Freenect2, SyncMultiFrameListener, FrameType,
+        Registration, Frame, OpenGLPacketPipeline
+    )
+    KINECT_AVAILABLE = True
 except ImportError:
-    print("ERROR: pyrealsense2 is not installed.")
-    print("Install with: pip install pyrealsense2")
+    print("ERROR: pylibfreenect2 is not installed.")
+    print("Activate the project venv: source abvt310/bin/activate")
     raise SystemExit(1)
 
-# Index of the target device when no serial is specified (0 = first device)
-DEFAULT_DEVICE_INDEX = 0   # Red camera is typically the first enumerated device
+# Camera B (Red) is the second enumerated device (index 1)
+DEFAULT_DEVICE_INDEX = 1
 
 
-def list_devices(ctx: "rs.context"):
-    """Print and return info for all connected RealSense devices."""
-    devices = ctx.query_devices()
-    print(f"Found {len(devices)} RealSense device(s):")
-    for i, dev in enumerate(devices):
-        name   = dev.get_info(rs.camera_info.name)
-        serial = dev.get_info(rs.camera_info.serial_number)
-        print(f"  [{i}]  {name}   serial: {serial}")
-    return devices
+def list_devices(fn: "Freenect2"):
+    num = fn.enumerateDevices()
+    print(f"Found {num} Kinect v2 device(s):")
+    serials = []
+    for i in range(num):
+        s = fn.getDeviceSerialNumber(i)
+        serials.append(s)
+        print(f"  [{i}]  serial: {s}")
+    return serials
 
 
 def main(target_serial: str = None):
-    ctx     = rs.context()
-    devices = list_devices(ctx)
+    fn = Freenect2()
+    serials = list_devices(fn)
 
-    if len(devices) == 0:
-        print("No RealSense device connected!")
+    if not serials:
+        print("No Kinect v2 device connected!")
         return
 
-    # Resolve serial to use
-    if target_serial:
-        serials = [d.get_info(rs.camera_info.serial_number) for d in devices]
-        if target_serial not in serials:
-            print(f"Device {target_serial} not found. Available: {serials}")
-            return
+    if target_serial and target_serial in serials:
         serial = target_serial
     else:
-        idx    = min(DEFAULT_DEVICE_INDEX, len(devices) - 1)
-        serial = devices[idx].get_info(rs.camera_info.serial_number)
-        print(f"No serial specified - using device [{idx}]  serial: {serial}")
-
-    # -----------------------------------------------------------------------
-    # Configure and start the pipeline
-    # -----------------------------------------------------------------------
-    pipeline = rs.pipeline()
-    config   = rs.config()
-
-    config.enable_device(serial)
-    config.enable_stream(rs.stream.color, 1280, 720,  rs.format.bgr8, 30)
-    config.enable_stream(rs.stream.depth,  640, 480,  rs.format.z16,  30)
-
-    profile = pipeline.start(config)
-    align   = rs.align(rs.stream.color)
-
-    print(f"Stream started for device {serial}")
-    print("Press 'q' or ESC to quit.")
+        idx = min(DEFAULT_DEVICE_INDEX, len(serials) - 1)
+        serial = serials[idx]
+        print(f"Using device [{idx}]  serial: {serial}")
 
     try:
-        frame_count = 0
+        pipeline = OpenGLPacketPipeline()
+    except Exception:
+        from pylibfreenect2 import CpuPacketPipeline
+        pipeline = CpuPacketPipeline()
+        print("OpenGL pipeline unavailable, using CPU pipeline")
 
+    device = fn.openDevice(serial, pipeline=pipeline)
+    listener = SyncMultiFrameListener(FrameType.Color | FrameType.Depth)
+    device.setColorFrameListener(listener)
+    device.setIrAndDepthFrameListener(listener)
+    device.start()
+
+    registration = Registration(device.getIrCameraParams(), device.getColorCameraParams())
+    undistorted = Frame(512, 424, 4)
+    registered  = Frame(512, 424, 4)
+
+    print(f"Stream started — device {serial}")
+    print("Press 'q' or ESC to quit.")
+
+    frame_count = 0
+    try:
         while True:
-            frames         = pipeline.wait_for_frames()
-            aligned_frames = align.process(frames)
+            frames = listener.waitForNewFrame()
+            color = frames[FrameType.Color]
+            depth = frames[FrameType.Depth]
 
-            colour_frame = aligned_frames.get_color_frame()
-            depth_frame  = aligned_frames.get_depth_frame()
+            registration.apply(color, depth, undistorted, registered,
+                               bigdepth=None, color_depth_map=None)
 
-            if not colour_frame or not depth_frame:
-                continue
+            colour_image = registered.asarray()[..., :3]      # BGR uint8, 512×424
+            depth_image  = undistorted.asarray()              # float32 mm, 512×424
 
-            colour_image = np.asanyarray(colour_frame.get_data())   # BGR uint8
-            depth_image  = np.asanyarray(depth_frame.get_data())    # mm  uint16
+            listener.release(frames)
 
-            # Colour-map depth for display (scale 0-6000 mm -> 0-255)
+            # Colour-map depth (0–4500 mm → 0–255)
             depth_display = cv2.applyColorMap(
-                cv2.convertScaleAbs(depth_image, alpha=255.0 / 6000.0),
+                cv2.convertScaleAbs(depth_image, alpha=255.0 / 4500.0),
                 cv2.COLORMAP_JET
             )
 
-            # Resize both images to the same height for horizontal stacking
             colour_resized = cv2.resize(colour_image, (640, 360))
             depth_resized  = cv2.resize(depth_display, (640, 360))
 
             combined = np.hstack((colour_resized, depth_resized))
-            cv2.imshow("RealSense - Red Camera  [ colour | depth ]", combined)
+            cv2.imshow("Kinect v2 - Red Camera  [ colour | depth ]", combined)
 
             frame_count += 1
             if frame_count % 30 == 0:
                 print(f"Frames received: {frame_count}")
 
             key = cv2.waitKey(1) & 0xFF
-            if key in (ord('q'), 27):   # 'q' or ESC
+            if key in (ord('q'), 27):
                 break
 
     except KeyboardInterrupt:
         print("\nInterrupted by user")
-
     finally:
-        pipeline.stop()
+        device.stop()
+        device.close()
         cv2.destroyAllWindows()
         print("Cleanup complete")
 
 
-# ---------------------------------------------------------------------------
-# CLI
-# ---------------------------------------------------------------------------
-
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        description="Intel RealSense Live Viewer (Camera B - Red)")
+        description="Kinect v2 Live Viewer (Camera B - Red)")
     parser.add_argument(
         "--serial", default=None,
-        help="Target RealSense device serial number "
-             "(default: first enumerated device)")
+        help="Target Kinect v2 device serial number "
+             "(default: second enumerated device)")
     return parser.parse_args()
 
 

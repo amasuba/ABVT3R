@@ -1,0 +1,27 @@
+# Python virtual environments
+abvt/
+abvt310/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Large generated output arrays (text stats file is kept)
+reconstruction_output/*.npy
+reconstruction_output/*.ply
+reconstruction_output/*.obj
+
+# Raw capture scratch files
+depth.npy
+depth.png
+rgb.npy
+rgb.png
+
+# libfreenect2 build artifacts (library is installed system-wide)
+libfreenect2/build/
+
+# OS
+.DS_Store
+Thumbs.db

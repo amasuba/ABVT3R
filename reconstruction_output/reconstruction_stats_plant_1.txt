@@ -2,34 +2,34 @@
 ==================================================
 
 INPUT DATA:
-  Views processed: 4 (0°, 90°, 180°, 270°)
-  Total input points: 17,901
+  Views processed: 4 (0Â°, 90Â°, 180Â°, 270Â°)
+  Total input points: 17,736
 
 MERGING RESULTS:
-  Merged points: 14,345
-  Coverage balance: 0.722
-  Density uniformity: 0.414
+  Merged points: 14,187
+  Coverage balance: 0.701
+  Density uniformity: 0.415
 
 FINAL MESH:
-  Vertices: 29,160
-  Triangles: 58,421
-  Surface area: 1.431315 m²
-  Volume: 0.00354319 m³
+  Vertices: 28,247
+  Triangles: 56,705
+  Surface area: 1.389273 mÂ²
+  Volume: 0.00349071 mÂ³
 
 QUALITY METRICS:
-  Overall quality: 0.715
+  Overall quality: 0.708
   Geometric fidelity: 1.000
   Surface smoothness: 0.000
   Is manifold: True
   Holes filled: 0
 
 PLANT DIMENSIONS:
-  Height (Y): 42.00 cm
-  Width (X): 32.90 cm
+  Height (Y): 39.90 cm
+  Width (X): 33.60 cm
   Depth (Z): 37.80 cm
 
 PLANT BIOMASS ESTIMATION:
   RF Biomass Prediction: 1.31kg
 
 PROCESSING TIME: 
-  Total execution time: 11.00 seconds
+  Total execution time: 11.10 seconds

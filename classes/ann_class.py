@@ -38,7 +38,7 @@ class BiomassANN:
         # Load the reconstruction stats from text file
         stats_file = f"{reconstruction_dir}/reconstruction_stats_plant_{plant_id}.txt"
         if os.path.exists(stats_file):
-            with open(stats_file, 'r') as f:
+            with open(stats_file, 'r', encoding='utf-8', errors='ignore') as f:
                 lines = f.readlines()
                 for i, line in enumerate(lines):
                     if 'Merged points:' in line:
@@ -48,9 +48,9 @@ class BiomassANN:
                     elif 'Triangles:' in line and i > 0 and 'Final' not in lines[i - 1]:
                         features['triangles'] = float(line.split(':')[1].replace(',', '').strip())
                     elif 'Surface area:' in line:
-                        features['surface_area'] = float(line.split(':')[1].split('m²')[0].strip())
+                        features['surface_area'] = float(line.split(':')[1].strip().split()[0])
                     elif 'Volume' in line:
-                        features['volume'] = float(line.split(':')[1].split('m³')[0].strip())
+                        features['volume'] = float(line.split(':')[1].strip().split()[0])
                     elif 'Overall quality:' in line:
                         features['overall_quality'] = float(line.split(':')[1].strip())
                     elif 'Geometric fidelity:' in line:

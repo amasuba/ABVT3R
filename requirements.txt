@@ -3,9 +3,12 @@ scipy>=1.6
 scikit-learn>=1.0
 opencv-python>=4.5
 matplotlib>=3.3
-# open3d>=0.15  # No pip wheel for Python 3.13; install via: conda install -c conda-forge open3d
 pyserial>=3.5
-# Intel RealSense SDK Python bindings (replaces pylibfreenect2 / Kinect V2 driver)
-# On NVIDIA Jetson Nano install from the official librealsense wheel or build from source:
-#   https://github.com/IntelRealSense/librealsense/blob/master/doc/installation_jetson.md
-pyrealsense2>=2.50
+# open3d>=0.15  # optional; no pip wheel for Python 3.13+; skip or: conda install -c conda-forge open3d
+
+# Kinect v2 Python bindings — requires Cython<3 and Python <=3.10 dev headers.
+# Install into the abvt310/ virtualenv (Python 3.10) via the setup script:
+#   bash setup_kinect_env.sh
+# or manually:
+#   pip install "cython<3" && pip install pylibfreenect2 --no-build-isolation
+pylibfreenect2

@@ -1,6 +1,6 @@
 # Automated Biomass Estimation using Self-Supervised Vision Transformers
 
-A non-destructive plant phenotyping system for biomass estimation leveraging self-supervised vision transformers combined with dual Intel RealSense RGB-D cameras. The system employs a four-view capture strategy with voxel-based 3D reconstruction and transformer-based feature learning to achieve automated plant biomass predictions within 2 minutes per specimen.
+A non-destructive plant phenotyping system for biomass estimation leveraging self-supervised vision transformers combined with dual Microsoft Kinect v2 RGB-D cameras. The system employs a four-view capture strategy with voxel-based 3D reconstruction and transformer-based feature learning to achieve automated plant biomass predictions within 2 minutes per specimen.
 
 ## Project Overview
 
@@ -18,7 +18,7 @@ This project implements an automated plant phenotyping system designed for ornam
 
 The system employs a client-server architecture with four major subsystems:
 
-1. **Hardware Capture Subsystem**: Custom 6×3×2m gantry with dual Intel RealSense D435 cameras mounted on opposing sides, rotating around stationary plants via Arduino-controlled NEMA 23 stepper motors.
+1. **Hardware Capture Subsystem**: Custom 6×3×2m gantry with dual Microsoft Kinect v2 cameras mounted on opposing sides, rotating around stationary plants via Arduino-controlled NEMA 23 stepper motors.
 
 2. **Processing Subsystem**: NVIDIA Jetson Nano embedded platform executing the complete computational pipeline autonomously.
 
@@ -73,20 +73,20 @@ Random Forest regression model predicting biomass from geometric features:
 
 All core algorithms were implemented from first principles using NumPy, without reliance on high-level libraries like Open3D or PCL for processing. This approach provides complete control over algorithmic behaviour and enables optimization for Intel RealSense D435 characteristics and plant morphology.
 
+
 ### Dependencies
 
 ```
 numpy >= 1.20       # Core array operations and linear algebra
 scikit-learn >= 1.0  # KD-tree for nearest neighbor search only
 opencv-python        # Image operations
-pyrealsense2 >= 2.50 # Intel RealSense D435 camera interfacing
+pylibfreenect2       # Kinect v2 camera interfacing
 pyserial             # Arduino communication
 tkinter              # GUI development
 ```
 
-> **Jetson Nano install note**: `pyrealsense2` must be built from source or installed
-> via the official Intel librealsense packaging for aarch64:
-> <https://github.com/IntelRealSense/librealsense/blob/master/doc/installation_jetson.md>
+> **Kinect v2 install note**: `pylibfreenect2` is required for Kinect v2 support. Install with:
+> `pip install pylibfreenect2`
 
 ### Key Classes
 
@@ -97,7 +97,7 @@ tkinter              # GUI development
 
 ## Hardware Requirements
 
-- **Cameras**: Dual Intel RealSense D435 (1280×720 RGB, 640×480 depth aligned to colour)
+- **Cameras**: Dual Microsoft Kinect v2 (1920×1080 RGB, 512×424 depth aligned to colour)
 - **Processing**: NVIDIA Jetson Nano (4GB RAM, Quad-core ARM Cortex-A57 + 128-core Maxwell GPU)
 - **Motors**: NEMA 23 stepper motors with TB6600 drivers
 - **Microcontroller**: Arduino Uno R3
@@ -221,15 +221,14 @@ Outputs are written to `reconstruction_output/`:
 | `merged_points_plant_1.npy` | Merged registered point cloud |
 | `surface_normals_plant_1.npy` | Surface normals |
 
-### Full client/server system (requires Intel RealSense hardware + Jetson Nano / Linux)
+### Full client/server system (requires Microsoft Kinect v2 hardware + Linux)
 
-1. Install `pyrealsense2` on the Jetson Nano following the official Intel guide:
-   <https://github.com/IntelRealSense/librealsense/blob/master/doc/installation_jetson.md>
+1. Install `pylibfreenect2` for Kinect v2 support:
+   `pip install pylibfreenect2`
 
-2. Edit the `DEFAULT_SERIAL` constants in `classes/camera_green.py` and `classes/camera_red.py`
-   to match the serial numbers printed on your two RealSense cameras.
+2. (Optional) Specify the Kinect serials in `classes/camera_green.py` and `classes/camera_red.py` if you have multiple devices.
 
-3. Start the host on the Jetson Nano:
+3. Start the host:
 ```bash
 python host.py
 ```
@@ -237,6 +236,5 @@ python host.py
 ```bash
 python GUI.py
 ```
-> Requires: `pyrealsense2`, `open3d` (optional), Arduino serial connection, Jetson Nano or any
-> Linux machine with the Intel librealsense SDK and two USB-connected RealSense D435 cameras.
+> Requires: `pylibfreenect2`, `open3d` (optional), Arduino serial connection, and two USB-connected Microsoft Kinect v2 cameras.
 

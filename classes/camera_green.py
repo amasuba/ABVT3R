@@ -1,12 +1,11 @@
 ﻿#!/usr/bin/env python3
 """
-Intel RealSense Camera Host - Camera A (Green)
-Captures aligned RGB and Depth data from an Intel RealSense camera and saves
-to the data_collection/ directory.  Device selection is by serial number.
+Kinect v2 Camera Host - Camera A (Green)
+Captures aligned RGB and Depth data from a Microsoft Kinect v2 camera and
+saves to the data_collection/ directory.  Device selection is by serial number.
 
-Replaces : Kinect V2 (pylibfreenect2)
-Platform : NVIDIA Jetson Nano
-Hardware : Intel RealSense D415 / D435 / D435i / D455
+Platform : Linux (NVIDIA Jetson Nano or desktop)
+Hardware : Microsoft Kinect v2
 """
 
 import time
@@ -18,51 +17,55 @@ import os
 import argparse
 from pathlib import Path
 
+
 # ---------------------------------------------------------------------------
-# Optional RealSense import
+# Kinect v2 (libfreenect2) import
 # ---------------------------------------------------------------------------
-REALSENSE_AVAILABLE = False
+KINECT_AVAILABLE = False
 try:
-    import pyrealsense2 as rs
-    REALSENSE_AVAILABLE = True
-    print("Using pyrealsense2 library")
+    import pylibfreenect2
+    from pylibfreenect2 import (
+        Freenect2, Freenect2Device, SyncMultiFrameListener, FrameType,
+        Registration, Frame, FrameMap, OpenGLPacketPipeline
+    )
+    KINECT_AVAILABLE = True
+    print("Using pylibfreenect2 library for Kinect v2")
 except ImportError:
-    REALSENSE_AVAILABLE = False
-    print("Warning: pyrealsense2 not available. "
-          "Install with: pip install pyrealsense2")
+    KINECT_AVAILABLE = False
+    print("Warning: pylibfreenect2 not available. "
+          "Install with: pip install pylibfreenect2")
 
 
-class RealSenseCameraHost:
+class KinectV2CameraHost:
     """
-    Intel RealSense RGB-D camera host.
+    Kinect v2 RGB-D camera host — Camera A (Green).
 
-    Streams are configured as:
-      - Colour  : 1280 x 720  BGR8  @ 30 fps
-      - Depth   :  640 x 480  Z16   @ 30 fps  (aligned to colour resolution)
+    Streams:
+      - Colour : 1920 x 1080  BGRA  @ 30 fps
+      - Depth  :  512 x  424  float32 mm  (undistorted, aligned to IR frame)
 
-    The depth map returned is aligned to the colour frame and expressed in
-    millimetres (uint16), matching the data format previously produced by the
-    Kinect V2 pipeline so that downstream processing is unchanged.
+    The depth map is expressed in millimetres (uint16) so downstream
+    processing is hardware-agnostic.
     """
 
     # Default serial for Camera A (Green).
-    # Replace with the actual serial printed on the camera label.
-    DEFAULT_SERIAL = "815412070001"
+    # Set to the serial printed on the camera label for a fixed assignment.
+    # None → first enumerated Kinect v2 device (index 0).
+    DEFAULT_SERIAL = None
 
     def __init__(self,
                  target_serial: str = DEFAULT_SERIAL,
                  filename: str = "default",
                  count: int = 1,
-                 color_width: int = 1280,
-                 color_height: int = 720,
-                 depth_width: int = 640,
-                 depth_height: int = 480,
+                 color_width: int = 1920,
+                 color_height: int = 1080,
+                 depth_width: int = 512,
+                 depth_height: int = 424,
                  fps: int = 30):
 
-        self.pipeline       = None
-        self.config         = None
-        self.align          = None
-        self.profile        = None
+        self.device         = None
+        self.listener       = None
+        self.registration   = None
         self.camera_working = False
         self.capture_count  = 0
         self.target_serial  = target_serial
@@ -87,23 +90,19 @@ class RealSenseCameraHost:
     # Device discovery
     # -----------------------------------------------------------------------
 
-    def list_realsense_devices(self):
-        """Return a list of serial-number strings for all connected devices."""
-        if not REALSENSE_AVAILABLE:
-            print("pyrealsense2 not available")
+    def list_kinect_devices(self):
+        """Return a list of serial-number strings for all connected Kinect v2 devices."""
+        if not KINECT_AVAILABLE:
+            print("pylibfreenect2 not available")
             return []
-
-        ctx     = rs.context()
-        devices = ctx.query_devices()
+        fn = Freenect2()
+        num_devices = fn.enumerateDevices()
         serials = []
-
-        print(f"Found {len(devices)} RealSense device(s):")
-        for dev in devices:
-            serial = dev.get_info(rs.camera_info.serial_number)
-            name   = dev.get_info(rs.camera_info.name)
+        print(f"Found {num_devices} Kinect v2 device(s):")
+        for i in range(num_devices):
+            serial = fn.getDeviceSerialNumber(i)
             serials.append(serial)
-            print(f"  Serial: {serial}  Model: {name}")
-
+            print(f"  Serial: {serial}")
         return serials
 
     # -----------------------------------------------------------------------
@@ -112,60 +111,48 @@ class RealSenseCameraHost:
 
     def init_camera(self) -> bool:
         """
-        Initialise the RealSense pipeline for the target device serial.
+        Initialise the Kinect v2 device for acquisition.
         Returns True on success, False otherwise.
         """
-        if not REALSENSE_AVAILABLE:
-            print("pyrealsense2 not available")
+        if not KINECT_AVAILABLE:
+            print("pylibfreenect2 not available")
             return False
 
-        available = self.list_realsense_devices()
-        if not available:
-            print("No RealSense devices found")
+        fn = Freenect2()
+        num_devices = fn.enumerateDevices()
+        if num_devices == 0:
+            print("No Kinect v2 devices found")
             return False
 
-        if self.target_serial not in available:
-            print(f"Device {self.target_serial} not found. "
-                  f"Available: {available}")
-            return False
+        serials = self.list_kinect_devices()
+        serial = self.target_serial
+        if serial is None or serial not in serials:
+            serial = serials[0]  # Use first device if not specified
+            print(f"Using Kinect serial: {serial}")
 
         try:
-            self.pipeline = rs.pipeline()
-            self.config   = rs.config()
-
-            # Bind pipeline to the specific device
-            self.config.enable_device(self.target_serial)
-
-            # Configure colour and depth streams
-            self.config.enable_stream(
-                rs.stream.color,
-                self.color_width, self.color_height,
-                rs.format.bgr8, self.fps
-            )
-            self.config.enable_stream(
-                rs.stream.depth,
-                self.depth_width, self.depth_height,
-                rs.format.z16, self.fps
-            )
-
-            # Start the pipeline
-            self.profile = self.pipeline.start(self.config)
-
-            # Depth frames will be spatially aligned to the colour frame
-            self.align = rs.align(rs.stream.color)
-
-            # Warm-up: discard frames until auto-exposure and AWB stabilise
-            print("Warming up (auto-exposure / AWB) for 2 s ...")
+            try:
+                pipeline = OpenGLPacketPipeline()
+            except Exception:
+                from pylibfreenect2 import CpuPacketPipeline
+                pipeline = CpuPacketPipeline()
+                print("OpenGL pipeline unavailable, using CPU pipeline")
+            self.device = fn.openDevice(serial, pipeline=pipeline)
+            self.listener = SyncMultiFrameListener(FrameType.Color | FrameType.Depth)
+            self.device.setColorFrameListener(self.listener)
+            self.device.setIrAndDepthFrameListener(self.listener)
+            self.device.start()
+            self.registration = Registration(self.device.getIrCameraParams(), self.device.getColorCameraParams())
+            self.camera_working = True
+            print(f"Kinect v2 device {serial} initialised")
+            # Warm-up: discard initial frames so auto-exposure settles
             warmup_frames = self.fps * 2
             for _ in range(warmup_frames):
-                self.pipeline.wait_for_frames()
-
-            self.camera_working = True
-            print(f"RealSense camera {self.target_serial} initialised")
+                frames = self.listener.waitForNewFrame()
+                self.listener.release(frames)
             return True
-
         except Exception as e:
-            print(f"Failed to initialise RealSense camera: {e}")
+            print(f"Failed to initialise Kinect v2: {e}")
             self.cleanup()
             return False
 
@@ -176,7 +163,6 @@ class RealSenseCameraHost:
     def capture_frames(self):
         """
         Wait for and return one aligned (colour, depth) frame pair.
-
         Returns
         -------
         rgb_array   : np.ndarray  shape (H, W, 3)  uint8   BGR
@@ -187,24 +173,22 @@ class RealSenseCameraHost:
         if not self.camera_working:
             print("Camera not initialised")
             return None, None
-
         try:
-            frames         = self.pipeline.wait_for_frames()
-            aligned_frames = self.align.process(frames)
-
-            colour_frame = aligned_frames.get_color_frame()
-            depth_frame  = aligned_frames.get_depth_frame()
-
-            if not colour_frame or not depth_frame:
-                print("Empty frame received")
-                return None, None
-
-            # Convert to NumPy -- depth is in mm (Z16 format)
-            rgb_array   = np.asanyarray(colour_frame.get_data())
-            depth_array = np.asanyarray(depth_frame.get_data())
-
+            frames = self.listener.waitForNewFrame()
+            color = frames[FrameType.Color]
+            depth = frames[FrameType.Depth]
+            # Registration output frames (both at depth resolution 512×424)
+            undistorted = Frame(self.depth_width, self.depth_height, 4)
+            registered  = Frame(self.depth_width, self.depth_height, 4)
+            self.registration.apply(
+                color, depth, undistorted, registered, bigdepth=None, color_depth_map=None
+            )
+            # registered: BGRA colour at each depth pixel (512×424)
+            # undistorted: depth in mm, float32 (512×424)
+            rgb_array   = registered.asarray()[..., :3].copy()   # drop alpha → BGR uint8
+            depth_array = undistorted.asarray().astype(np.uint16)  # mm → uint16
+            self.listener.release(frames)
             return rgb_array, depth_array
-
         except Exception as e:
             print(f"Error capturing frames: {e}")
             return None, None
@@ -268,13 +252,14 @@ class RealSenseCameraHost:
     # -----------------------------------------------------------------------
 
     def cleanup(self):
-        """Stop the RealSense pipeline and release all resources."""
-        if self.pipeline:
+        """Stop the Kinect v2 device and release all resources."""
+        if self.device:
             try:
-                self.pipeline.stop()
+                self.device.stop()
+                self.device.close()
             except Exception:
                 pass
-            self.pipeline = None
+            self.device = None
         self.camera_working = False
 
 
@@ -282,9 +267,10 @@ class RealSenseCameraHost:
 # CLI entry-point
 # ---------------------------------------------------------------------------
 
+
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        description="Intel RealSense Camera Host (Camera A - Green)")
+        description="Kinect v2 Camera Host (Camera A - Green)")
     parser.add_argument(
         "filename", nargs="?", default="default",
         help="Filename prefix for saved files")
@@ -292,26 +278,27 @@ def parse_arguments():
         "count", nargs="?", type=int, default=1,
         help="Plant number used in output file names")
     parser.add_argument(
-        "--serial", default=RealSenseCameraHost.DEFAULT_SERIAL,
-        help="Target RealSense device serial number")
+        "--serial", default=KinectV2CameraHost.DEFAULT_SERIAL,
+        help="Target Kinect v2 device serial number")
     return parser.parse_args()
+
 
 
 def main():
     args = parse_arguments()
 
-    print("=== RealSense Camera Host (Camera A - Green) ===")
+    print("=== Kinect v2 Camera Host (Camera A - Green) ===")
     print(f"Serial   : {args.serial}")
     print(f"Filename : {args.filename}")
     print(f"Plant No : {args.count}")
 
-    camera = RealSenseCameraHost(
+    camera = KinectV2CameraHost(
         target_serial=args.serial,
         filename=args.filename,
         count=args.count
     )
 
-    print("Initialising RealSense camera ...")
+    print("Initialising Kinect v2 ...")
     if not camera.init_camera():
         print("Failed to initialise camera")
         camera.cleanup()

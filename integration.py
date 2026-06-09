@@ -309,8 +309,247 @@ class Integration:
             f.write("PROCESSING TIME: \n")
             f.write(f"  Total execution time: {execution_time:.2f} seconds\n")
         
-        self.report_progress("Pipeline complete!", 100) 
-        self.plant_count += 1   
+        self.report_progress("Generating visualisation...", 98)
+        self.generate_reconstruction_png(
+            reconstruction_results=reconstruction_results,
+            stats=stats,
+            merge_qual=merge_qual,
+            surface_qual=surface_qual,
+            features_dict=features_dict,
+            biomass_rf=self.prediction_rf,
+            width=width, height=height, depth=depth,
+            output_dir=output_dir
+        )
+
+        self.report_progress("Pipeline complete!", 100)
+        self.plant_count += 1
+
+    # =================================================================================
+    # Visualisation
+    # =================================================================================
+
+    def generate_reconstruction_png(self, reconstruction_results, stats, merge_qual,
+                                     surface_qual, features_dict, biomass_rf,
+                                     width, height, depth, output_dir):
+        """
+        Produce a multi-panel PNG that visualises the reconstructed plant and shows
+        how the 3D morphological features relate to the predicted biomass.
+
+        Layout (2 rows × 3 cols):
+          Row 1:  Front projection | Side projection | Top projection
+          Row 2:  3-D mesh         | Plant stats     | Feature → Biomass bar chart
+        """
+        import matplotlib
+        matplotlib.use('Agg')
+        import matplotlib.pyplot as plt
+        import matplotlib.gridspec as gridspec
+        from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+        from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+
+        merged_cloud   = reconstruction_results['merged_cloud']
+        final_vertices = reconstruction_results['final_vertices']
+        final_triangles = reconstruction_results['final_triangles']
+
+        # ── Colour point cloud by height (Y axis) ──────────────────────────────
+        y = merged_cloud[:, 1]
+        y_norm = (y - y.min()) / (y.max() - y.min() + 1e-9)
+        colours = plt.cm.viridis(y_norm)
+
+        # Subsample for scatter plots (keep render fast)
+        n_pts   = len(merged_cloud)
+        stride  = max(1, n_pts // 4000)
+        idx     = np.arange(0, n_pts, stride)
+        pts_sub = merged_cloud[idx]
+        col_sub = colours[idx]
+
+        fig = plt.figure(figsize=(18, 11), facecolor='#1a1a2e')
+        fig.suptitle(
+            f'3-D Reconstruction  |  Plant {self.plant_count - 1}  |  '
+            f'Predicted Biomass: {biomass_rf:.2f} kg',
+            fontsize=16, color='white', fontweight='bold', y=0.98
+        )
+
+        gs = gridspec.GridSpec(2, 3, figure=fig,
+                               hspace=0.38, wspace=0.32,
+                               left=0.05, right=0.97,
+                               top=0.93, bottom=0.06)
+
+        ax_style = dict(facecolor='#0d0d1a')
+
+        # ── Helper: style a 2-D projection axis ───────────────────────────────
+        def style_ax(ax, xlabel, ylabel, title):
+            ax.set_facecolor('#0d0d1a')
+            ax.tick_params(colors='#aaaaaa', labelsize=7)
+            ax.set_xlabel(xlabel, color='#aaaaaa', fontsize=8)
+            ax.set_ylabel(ylabel, color='#aaaaaa', fontsize=8)
+            ax.set_title(title, color='white', fontsize=9, pad=4)
+            for spine in ax.spines.values():
+                spine.set_edgecolor('#333355')
+
+        # ── Row 1: three orthographic projections ─────────────────────────────
+        # Front  (X–Y)
+        ax_front = fig.add_subplot(gs[0, 0], **ax_style)
+        ax_front.scatter(pts_sub[:, 0], pts_sub[:, 1],
+                         c=col_sub, s=0.8, linewidths=0)
+        style_ax(ax_front, 'X (m)', 'Y – height (m)', 'Front view  (X – Y)')
+
+        # Side  (Z–Y)
+        ax_side = fig.add_subplot(gs[0, 1], **ax_style)
+        ax_side.scatter(pts_sub[:, 2], pts_sub[:, 1],
+                        c=col_sub, s=0.8, linewidths=0)
+        style_ax(ax_side, 'Z (m)', 'Y – height (m)', 'Side view  (Z – Y)')
+
+        # Top  (X–Z)
+        ax_top = fig.add_subplot(gs[0, 2], **ax_style)
+        ax_top.scatter(pts_sub[:, 0], pts_sub[:, 2],
+                       c=col_sub, s=0.8, linewidths=0)
+        style_ax(ax_top, 'X (m)', 'Z (m)', 'Top view  (X – Z)')
+
+        # ── Row 2, Col 0: 3-D mesh ────────────────────────────────────────────
+        ax_mesh = fig.add_subplot(gs[1, 0], projection='3d',
+                                  facecolor='#0d0d1a')
+        ax_mesh.set_facecolor('#0d0d1a')
+
+        # Subsample triangles so rendering stays fast
+        tri_stride = max(1, len(final_triangles) // 3000)
+        tri_sub    = final_triangles[::tri_stride]
+
+        # Colour faces by mean Y height of their vertices
+        face_y = final_vertices[tri_sub, 1].mean(axis=1)
+        face_y_norm = (face_y - face_y.min()) / (face_y.max() - face_y.min() + 1e-9)
+        face_colours = plt.cm.viridis(face_y_norm)
+
+        polys = [final_vertices[t] for t in tri_sub]
+        mesh_coll = Poly3DCollection(polys, alpha=0.55,
+                                     facecolors=face_colours,
+                                     edgecolors='none')
+        ax_mesh.add_collection3d(mesh_coll)
+
+        # Set axis limits from point cloud bounding box
+        for axis, dim in zip(['x', 'y', 'z'], [0, 1, 2]):
+            lo, hi = final_vertices[:, dim].min(), final_vertices[:, dim].max()
+            getattr(ax_mesh, f'set_{axis}lim')(lo, hi)
+
+        ax_mesh.set_xlabel('X', color='#aaaaaa', fontsize=7)
+        ax_mesh.set_ylabel('Z', color='#aaaaaa', fontsize=7)
+        ax_mesh.set_zlabel('Y', color='#aaaaaa', fontsize=7)
+        ax_mesh.set_title('3-D Mesh  (height-coloured)', color='white', fontsize=9)
+        ax_mesh.tick_params(colors='#aaaaaa', labelsize=6)
+        ax_mesh.xaxis.pane.fill = False
+        ax_mesh.yaxis.pane.fill = False
+        ax_mesh.zaxis.pane.fill = False
+
+        # ── Row 2, Col 1: plant stats text panel ──────────────────────────────
+        ax_stats = fig.add_subplot(gs[1, 1])
+        ax_stats.set_facecolor('#0d0d1a')
+        ax_stats.axis('off')
+
+        vol_L   = stats['volume'] * 1000          # m³ → litres
+        area_dm = stats['surface_area'] * 100     # m² → dm²
+
+        lines = [
+            ('Plant dimensions', ''),
+            ('  Height',  f"{height:.1f} cm"),
+            ('  Width',   f"{width:.1f} cm"),
+            ('  Depth',   f"{depth:.1f} cm"),
+            ('', ''),
+            ('Mesh quality', ''),
+            ('  Vertices',      f"{stats['final_vertices']:,}"),
+            ('  Triangles',     f"{stats['final_triangles']:,}"),
+            ('  Surface area',  f"{area_dm:.1f} dm²"),
+            ('  Volume',        f"{vol_L:.3f} L"),
+            ('  Quality score', f"{stats['overall_quality']:.3f}"),
+            ('  Geo. fidelity', f"{surface_qual['geometric_fidelity']:.3f}"),
+            ('  Is manifold',   str(surface_qual['is_manifold'])),
+            ('', ''),
+            ('Biomass (RF)',  f"{biomass_rf:.2f} kg"),
+        ]
+
+        y_pos = 0.97
+        for label, value in lines:
+            if label == '' and value == '':
+                y_pos -= 0.04
+                continue
+            if value == '':          # section header
+                ax_stats.text(0.03, y_pos, label, color='#7ec8e3',
+                              fontsize=8.5, fontweight='bold',
+                              transform=ax_stats.transAxes, va='top')
+            else:
+                ax_stats.text(0.03, y_pos, label, color='#cccccc',
+                              fontsize=8, transform=ax_stats.transAxes, va='top')
+                ax_stats.text(0.62, y_pos, value, color='white',
+                              fontsize=8, fontweight='bold',
+                              transform=ax_stats.transAxes, va='top')
+            y_pos -= 0.058
+
+        ax_stats.set_title('Plant Stats', color='white', fontsize=9, pad=4)
+
+        # ── Row 2, Col 2: feature → biomass bar chart ─────────────────────────
+        ax_bar = fig.add_subplot(gs[1, 2])
+        ax_bar.set_facecolor('#0d0d1a')
+
+        feat_labels = {
+            'volume':                 'Volume (m³)',
+            'surface_area':           'Surface area (m²)',
+            'height':                 'Height (m)',
+            'bbox_volume':            'Bbox volume (m³)',
+            'surface_to_volume_ratio':'SA : V ratio',
+            'height_to_volume_ratio': 'H : V ratio',
+        }
+
+        bar_names  = []
+        bar_values = []
+        for key, label in feat_labels.items():
+            if key in features_dict:
+                bar_names.append(label)
+                bar_values.append(features_dict[key])
+
+        # Normalise values to [0, 1] for a visual comparison
+        bar_arr  = np.array(bar_values, dtype=float)
+        bar_norm = bar_arr / (bar_arr.max() + 1e-9)
+
+        colours_bar = plt.cm.plasma(np.linspace(0.2, 0.85, len(bar_names)))
+        bars = ax_bar.barh(bar_names, bar_norm, color=colours_bar,
+                           edgecolor='none', height=0.6)
+
+        # Annotate with raw values
+        for bar, raw in zip(bars, bar_values):
+            ax_bar.text(bar.get_width() + 0.02, bar.get_y() + bar.get_height() / 2,
+                        f'{raw:.3g}', va='center', color='white', fontsize=7)
+
+        # Biomass marker line (normalised relative to max feature value)
+        biomass_norm = biomass_rf / (bar_arr.max() + 1e-9)
+        ax_bar.axvline(biomass_norm, color='#ff6b6b', linewidth=1.5,
+                       linestyle='--', label=f'Biomass = {biomass_rf:.2f} kg')
+        ax_bar.legend(loc='lower right', fontsize=7, framealpha=0.3,
+                      labelcolor='white', facecolor='#0d0d1a')
+
+        ax_bar.set_xlim(0, 1.25)
+        ax_bar.set_title('Morphological Features → Biomass', color='white', fontsize=9, pad=4)
+        ax_bar.tick_params(colors='#aaaaaa', labelsize=7)
+        ax_bar.set_xlabel('Normalised value', color='#aaaaaa', fontsize=8)
+        for spine in ax_bar.spines.values():
+            spine.set_edgecolor('#333355')
+
+        # ── Colourbar (shared height gradient) ────────────────────────────────
+        sm = plt.cm.ScalarMappable(cmap='viridis',
+                                   norm=plt.Normalize(
+                                       vmin=merged_cloud[:, 1].min(),
+                                       vmax=merged_cloud[:, 1].max()))
+        sm.set_array([])
+        cbar = fig.colorbar(sm, ax=[ax_front, ax_side, ax_top],
+                            orientation='horizontal', fraction=0.025, pad=0.12,
+                            aspect=40)
+        cbar.set_label('Height (m)', color='#aaaaaa', fontsize=8)
+        cbar.ax.tick_params(colors='#aaaaaa', labelsize=7)
+
+        # ── Save ──────────────────────────────────────────────────────────────
+        out_path = f"{output_dir}/reconstruction_plant_{self.plant_count - 1}.png"
+        fig.savefig(out_path, dpi=150, bbox_inches='tight',
+                    facecolor=fig.get_facecolor())
+        plt.close(fig)
+        print(f"Saved reconstruction PNG → {out_path}")
+
     # =================================================================================
     # Start helper functions
     # =================================================================================

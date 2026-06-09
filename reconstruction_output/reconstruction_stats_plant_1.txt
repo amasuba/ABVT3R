@@ -32,4 +32,4 @@ PLANT BIOMASS ESTIMATION:
   RF Biomass Prediction: 1.31kg
 
 PROCESSING TIME: 
-  Total execution time: 11.10 seconds
+  Total execution time: 10.12 seconds

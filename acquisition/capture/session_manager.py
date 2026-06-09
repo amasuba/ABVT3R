@@ -63,6 +63,8 @@ class CaptureSession:
     baud_rate     : Arduino baud rate (default 9600)
     settle_delay  : seconds to wait after turntable moves before capturing
     simulate      : if True, skip hardware; generate synthetic noise frames
+    trigger       : if True, pause before each capture and wait for Enter
+    record_gt     : if True, prompt for ground-truth measurements after session
     angles_deg    : override capture angles (default: 30° protocol)
     """
 
@@ -74,11 +76,15 @@ class CaptureSession:
                  baud_rate: int    = 9600,
                  settle_delay: float = 2.0,
                  simulate: bool    = False,
+                 trigger: bool     = False,
+                 record_gt: bool   = False,
                  angles_deg: list  = None):
 
         self.specimen_id  = specimen_id
         self.settle_delay = settle_delay
         self.simulate     = simulate
+        self.trigger      = trigger
+        self.record_gt    = record_gt
         self.angles_deg   = angles_deg if angles_deg is not None else CAPTURE_ANGLES_DEG
 
         self.arduino      = None
@@ -145,10 +151,37 @@ class CaptureSession:
     # -----------------------------------------------------------------------
 
     @staticmethod
-    def _synthetic_frames():
-        """Return plausible-looking noise frames for offline testing."""
-        rgb   = np.random.randint(50, 200, (424, 512, 3), dtype=np.uint8)
-        depth = np.random.randint(400, 1200, (424, 512), dtype=np.uint16)
+    def _synthetic_frames(angle_deg: int = 0):
+        """
+        Return plausible-looking synthetic frames for offline testing.
+
+        Depth: radial gradient centred in frame, 1500–3500 mm range so that
+        COLORMAP_JET renders green/yellow (not all-blue at low values).
+        RGB: green-dominant disc on dark background, rotated per angle to
+        make each view visually distinct.
+        """
+        H, W = 424, 512
+        cy, cx = H // 2, W // 2
+        ys = np.arange(H)[:, None] - cy
+        xs = np.arange(W)[None, :] - cx
+        r  = np.hypot(ys, xs)
+
+        # Depth: plant-like sphere centred at ~2500 mm, background at 3500 mm
+        max_r = min(cy, cx) * 0.65
+        depth_f = np.where(r < max_r,
+                           2500.0 - (max_r - r) * (1000.0 / max_r),
+                           3500.0)
+        depth = depth_f.astype(np.uint16)
+
+        # RGB: green disc, hue rotates with angle for visual distinction
+        shift  = int(angle_deg / 360 * 255)
+        green  = np.clip(200 - (r / max_r * 180).astype(np.uint8), 40, 200)
+        mask   = r < max_r
+        rgb    = np.zeros((H, W, 3), dtype=np.uint8)
+        rgb[:, :, 0] = np.where(mask, (shift // 2) % 80, 20)          # B
+        rgb[:, :, 1] = np.where(mask, green, 20)                       # G
+        rgb[:, :, 2] = np.where(mask, (255 - shift) % 120 + 40, 20)   # R
+
         return rgb, depth
 
     # -----------------------------------------------------------------------
@@ -156,15 +189,23 @@ class CaptureSession:
     # -----------------------------------------------------------------------
 
     def _capture_at_angle(self, angle_deg: int):
-        """Move turntable, settle, then fire both cameras simultaneously."""
+        """Move turntable, settle, optionally wait for trigger, then fire both cameras."""
         print(f"\n[Session] ── Angle {angle_deg:3d}° ──────────────────────────────")
 
         self._move_to(angle_deg)
         time.sleep(self.settle_delay)
 
+        if self.trigger:
+            try:
+                input(f"  >> Plant at {angle_deg}° — press Enter to capture "
+                      f"(or Ctrl+C to stop) ... ")
+            except EOFError:
+                # Non-interactive stdin (e.g. piped); proceed automatically
+                pass
+
         if self.simulate:
-            rgb_a, dep_a = self._synthetic_frames()
-            rgb_b, dep_b = self._synthetic_frames()
+            rgb_a, dep_a = self._synthetic_frames(angle_deg)
+            rgb_b, dep_b = self._synthetic_frames(angle_deg)
         else:
             # Trigger simultaneously via threads
             results_a, results_b = [None], [None]
@@ -206,6 +247,8 @@ class CaptureSession:
         print(f"  Specimen   : {self.specimen_id}")
         print(f"  Angles     : {self.angles_deg}")
         print(f"  Simulate   : {self.simulate}")
+        print(f"  Trigger    : {self.trigger}")
+        print(f"  Record GT  : {self.record_gt}")
         print(f"{'='*60}\n")
 
         started = datetime.now(timezone.utc).isoformat()
@@ -225,6 +268,9 @@ class CaptureSession:
         finished = datetime.now(timezone.utc).isoformat()
         self._write_metadata(started, finished)
         self._print_summary()
+
+        if self.record_gt:
+            self._collect_ground_truth()
 
         n_ok = sum(v["camA"] and v["camB"] for v in self.results.values())
         return n_ok == len(self.angles_deg)
@@ -265,6 +311,96 @@ class CaptureSession:
         n_ok = sum(v["camA"] and v["camB"] for v in self.results.values())
         print(f"\n  Complete views : {n_ok}/{len(self.results)}")
         print(f"{'='*60}\n")
+
+    # -----------------------------------------------------------------------
+    # Ground truth collection
+    # -----------------------------------------------------------------------
+
+    def _collect_ground_truth(self):
+        """
+        Interactively prompt for specimen ground-truth measurements and
+        append (or update) a row in acquisition/dataset/ground_truth/registry.csv.
+
+        All fields are optional — press Enter to leave blank.
+        Existing registry entry for this specimen_id is overwritten.
+        """
+        from shared.config import GROUND_TRUTH_CSV
+
+        print(f"\n{'─'*60}")
+        print(f"  Ground-truth entry — {self.specimen_id}")
+        print(f"  (Press Enter to skip any field)")
+        print(f"{'─'*60}")
+
+        def _ask(label: str, unit: str = "", default: str = "") -> str:
+            hint = f" [{default}]" if default else ""
+            suffix = f" ({unit})" if unit else ""
+            try:
+                val = input(f"  {label}{suffix}{hint}: ").strip()
+            except EOFError:
+                val = ""
+            return val if val else default
+
+        # Parse specimen_id to guess defaults
+        parts = self.specimen_id.split("_")
+        date_str = parts[1] if len(parts) > 1 else datetime.now(timezone.utc).strftime("%Y%m%d")
+        collection_date = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}" if len(date_str) == 8 else date_str
+
+        row = {
+            "specimen_id":     self.specimen_id,
+            "species":         _ask("Species",       default="Duranta"),
+            "variety":         _ask("Variety",       default="Gold mini"),
+            "collection_date": _ask("Collection date (YYYY-MM-DD)", default=collection_date),
+            "collector":       _ask("Collector name"),
+            "location":        _ask("Location",      default="Greenhouse A"),
+            "agb_kg":          _ask("AGB mass",      "kg"),
+            "total_mass_kg":   _ask("Total mass (plant+pot)", "kg"),
+            "pot_mass_kg":     _ask("Pot mass",      "kg"),
+            "height_mm":       _ask("Plant height",  "mm"),
+            "dbh_mm":          _ask("Stem DBH",      "mm"),
+            "canopy_width_mm": _ask("Canopy width",  "mm"),
+            "notes":           _ask("Notes"),
+            "legacy_id":       "",
+        }
+
+        self._append_registry(row, GROUND_TRUTH_CSV)
+
+    def _append_registry(self, row: dict, csv_path: "Path"):
+        """Write row to registry CSV; overwrites existing entry for specimen_id."""
+        import csv as _csv
+
+        FIELDNAMES = [
+            "specimen_id", "species", "variety", "collection_date",
+            "collector", "location", "agb_kg", "total_mass_kg", "pot_mass_kg",
+            "height_mm", "dbh_mm", "canopy_width_mm", "notes", "legacy_id",
+        ]
+
+        csv_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Read existing rows (if any)
+        existing: list[dict] = []
+        if csv_path.exists():
+            with csv_path.open(newline="") as f:
+                existing = list(_csv.DictReader(f))
+
+        # Replace or append
+        updated = False
+        for i, r in enumerate(existing):
+            if r.get("specimen_id") == row["specimen_id"]:
+                existing[i] = row
+                updated = True
+                break
+        if not updated:
+            existing.append(row)
+
+        with csv_path.open("w", newline="") as f:
+            w = _csv.DictWriter(f, fieldnames=FIELDNAMES, extrasaction="ignore")
+            w.writeheader()
+            w.writerows(existing)
+
+        action = "Updated" if updated else "Added"
+        print(f"\n[GT] {action} registry entry → {csv_path}")
+        print(f"[GT] agb={row['agb_kg']} kg  total={row['total_mass_kg']} kg  "
+              f"height={row['height_mm']} mm")
 
     # -----------------------------------------------------------------------
     # Cleanup
@@ -330,6 +466,8 @@ def _parse_args():
     p.add_argument("--baud",          default=9600,  type=int)
     p.add_argument("--settle",        default=2.0,   type=float, help="Settle delay after motor move (s)")
     p.add_argument("--simulate",      action="store_true", help="Simulate cameras (no hardware required)")
+    p.add_argument("--trigger",       action="store_true", help="Pause at each angle and wait for Enter before capturing")
+    p.add_argument("--gt",            action="store_true", help="Prompt for ground-truth measurements after capture")
     p.add_argument("--legacy",        action="store_true", help="Use legacy 4-view 90° protocol")
     return p.parse_args()
 
@@ -343,6 +481,8 @@ def main():
         baud_rate    = args.baud,
         settle_delay = args.settle,
         simulate     = args.simulate,
+        trigger      = args.trigger,
+        record_gt    = args.gt,
         angles_deg   = angles,
     )
     success = session.run()

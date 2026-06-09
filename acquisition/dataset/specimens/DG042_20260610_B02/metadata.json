@@ -1,0 +1,71 @@
+{
+  "specimen_id": "DG042_20260610_B02",
+  "session_start": "2026-06-09T21:54:27.585198+00:00",
+  "session_end": "2026-06-09T21:54:51.983956+00:00",
+  "angles_deg": [
+    0,
+    30,
+    60,
+    90,
+    120,
+    150,
+    180,
+    210,
+    240,
+    270,
+    300,
+    330
+  ],
+  "angular_step": 30,
+  "simulated": true,
+  "capture_results": {
+    "0": {
+      "camA": true,
+      "camB": true
+    },
+    "30": {
+      "camA": true,
+      "camB": true
+    },
+    "60": {
+      "camA": true,
+      "camB": true
+    },
+    "90": {
+      "camA": true,
+      "camB": true
+    },
+    "120": {
+      "camA": true,
+      "camB": true
+    },
+    "150": {
+      "camA": true,
+      "camB": true
+    },
+    "180": {
+      "camA": true,
+      "camB": true
+    },
+    "210": {
+      "camA": true,
+      "camB": true
+    },
+    "240": {
+      "camA": true,
+      "camB": true
+    },
+    "270": {
+      "camA": true,
+      "camB": true
+    },
+    "300": {
+      "camA": true,
+      "camB": true
+    },
+    "330": {
+      "camA": true,
+      "camB": true
+    }
+  }
+}

@@ -38,7 +38,7 @@ try:
     import pylibfreenect2
     from pylibfreenect2 import (
         Freenect2, SyncMultiFrameListener, FrameType,
-        Registration, Frame, OpenGLPacketPipeline,
+        Registration, Frame, CpuPacketPipeline,
     )
     KINECT_AVAILABLE = True
     print("pylibfreenect2 loaded — Kinect v2 available")
@@ -72,7 +72,7 @@ class KinectCameraA:
     """
 
     LABEL = "A"                     # camera identifier in filenames
-    DEFAULT_SERIAL = None           # None → first enumerated Kinect v2
+    DEFAULT_SERIAL = "003071363947"
 
     def __init__(self,
                  specimen_id: str,
@@ -89,6 +89,7 @@ class KinectCameraA:
         self.target_serial = target_serial
         self.fps           = fps
 
+        self.fn            = None
         self.device        = None
         self.listener      = None
         self.registration  = None
@@ -116,7 +117,7 @@ class KinectCameraA:
             return []
         fn = Freenect2()
         n  = fn.enumerateDevices()
-        serials = [fn.getDeviceSerialNumber(i) for i in range(n)]
+        serials = [fn.getDeviceSerialNumber(i).decode() for i in range(n)]
         print(f"[CamA] Found {n} Kinect v2 device(s): {serials}")
         return serials
 
@@ -139,14 +140,10 @@ class KinectCameraA:
         print(f"[CamA] Opening device serial={serial}")
 
         try:
-            try:
-                pipeline = OpenGLPacketPipeline()
-            except Exception:
-                from pylibfreenect2 import CpuPacketPipeline
-                pipeline = CpuPacketPipeline()
-                print("[CamA] Falling back to CPU packet pipeline")
+            pipeline = CpuPacketPipeline()
 
-            self.device   = Freenect2().openDevice(serial, pipeline=pipeline)
+            self.fn       = Freenect2()
+            self.device   = self.fn.openDevice(serial.encode(), pipeline=pipeline)
             self.listener = SyncMultiFrameListener(FrameType.Color | FrameType.Depth)
             self.device.setColorFrameListener(self.listener)
             self.device.setIrAndDepthFrameListener(self.listener)
@@ -198,8 +195,8 @@ class KinectCameraA:
                 undistorted, registered,
                 bigdepth=None, color_depth_map=None
             )
-            rgb   = registered.asarray()[..., :3].copy()
-            depth = undistorted.asarray().astype(np.uint16)
+            rgb   = registered.asarray(dtype=np.uint8)[..., :3].copy()
+            depth = undistorted.asarray(dtype=np.float32).astype(np.uint16)
             self.listener.release(frames)
             return rgb, depth
 
@@ -279,7 +276,7 @@ def _parse_args():
     p.add_argument("specimen_id", help="Specimen ID, e.g. DG001_20260609_B01")
     p.add_argument("angle_deg",   type=int,
                    help=f"Turntable angle in degrees (suggested: {CAPTURE_ANGLES_DEG})")
-    p.add_argument("--serial",    default=None, help="Kinect v2 device serial")
+    p.add_argument("--serial",    default=KinectCameraA.DEFAULT_SERIAL, help="Kinect v2 device serial")
     return p.parse_args()
 
 

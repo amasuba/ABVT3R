@@ -4,7 +4,8 @@ scikit-learn>=1.0
 opencv-python>=4.5
 matplotlib>=3.3
 pyserial>=3.5
-# open3d>=0.15  # optional; no pip wheel for Python 3.13+; skip or: conda install -c conda-forge open3d
+Pillow>=9.0
+open3d>=0.15  # requires Python <=3.10 (no pip wheel for 3.13+); install into abvt310/
 
 # Kinect v2 Python bindings — requires Cython<3 and Python <=3.10 dev headers.
 # Install into the abvt310/ virtualenv (Python 3.10) via the setup script:
@@ -12,3 +13,15 @@ pyserial>=3.5
 # or manually:
 #   pip install "cython<3" && pip install pylibfreenect2 --no-build-isolation
 pylibfreenect2
+
+# --- Optional: neural_geometry/ deep-learning subsystem -------------------
+# (DINOv2 pretraining, SAM3D segmentation, volumetric transformer). Every
+# module in neural_geometry/ detects a missing import and degrades to a
+# stub rather than crashing, so these are NOT required for data acquisition
+# or the core procedure_alpha reconstruction/biomass pipeline. Uncomment
+# only if you're actually working on the neural_geometry subsystem — torch
+# is a multi-GB, platform/GPU-specific install (see https://pytorch.org for
+# the right command for your CUDA version):
+# torch>=2.0
+# torchvision>=0.15
+# segment-anything

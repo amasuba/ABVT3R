@@ -134,6 +134,45 @@ def fscore_3d(pred_pts: np.ndarray,
     return precision, recall, f
 
 
+def hausdorff_95(pred_pts: np.ndarray, gt_pts: np.ndarray) -> float:
+    """
+    95th-percentile symmetric Hausdorff distance (metres) — robust to the
+    single worst-case outlier point that dominates the full Hausdorff
+    distance.
+    """
+    from sklearn.neighbors import NearestNeighbors
+
+    def _p95(src, tgt):
+        kdt = NearestNeighbors(n_neighbors=1).fit(tgt)
+        d, _ = kdt.kneighbors(src)
+        return np.percentile(d.flatten(), 95)
+
+    return float(max(_p95(pred_pts, gt_pts), _p95(gt_pts, pred_pts)))
+
+
+def normal_consistency(pred_pts: np.ndarray, pred_normals: np.ndarray,
+                        gt_pts: np.ndarray, gt_normals: np.ndarray) -> float:
+    """
+    Mean |cos angle| between each point's normal and its nearest
+    neighbour's normal in the other cloud, averaged over both directions.
+    Absolute value is used because normal orientation (inward/outward) is
+    not guaranteed to agree across two independent normal-estimation
+    procedures (mesh vertex normals vs. NeRF-exported point normals).
+    """
+    from sklearn.neighbors import NearestNeighbors
+
+    def _one_way(src_pts, src_n, tgt_pts, tgt_n):
+        kdt = NearestNeighbors(n_neighbors=1).fit(tgt_pts)
+        _, idx = kdt.kneighbors(src_pts)
+        idx = idx.flatten()
+        cos = np.abs(np.sum(src_n * tgt_n[idx], axis=1))
+        return float(np.mean(cos))
+
+    nc_pred = _one_way(pred_pts, pred_normals, gt_pts, gt_normals)
+    nc_gt   = _one_way(gt_pts, gt_normals, pred_pts, pred_normals)
+    return (nc_pred + nc_gt) / 2.0
+
+
 # ---------------------------------------------------------------------------
 # Classification metrics
 # ---------------------------------------------------------------------------

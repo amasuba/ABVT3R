@@ -100,6 +100,8 @@ def load_level2_results(results_dir: Path = None) -> dict[str, dict]:
 
 
 def _load_gt() -> dict:
+    """Return {label: total_mass_g}. Registry stores kg; comparisons here
+    are in grams (the unit the field scale actually reports), so convert."""
     gt = {}
     if not GROUND_TRUTH_CSV.exists():
         return gt
@@ -109,10 +111,10 @@ def _load_gt() -> dict:
             val = (row.get("agb_kg", "").strip() or
                    row.get("total_mass_kg", "").strip())
             if val:
-                gt[sid] = float(val)
+                gt[sid] = float(val) * 1000
             lid = row.get("legacy_id", "").strip()
             if lid and val:
-                gt[lid] = float(val)
+                gt[lid] = float(val) * 1000
     return gt
 
 
@@ -184,6 +186,8 @@ def run_comparison(export_path: Path = None) -> dict:
     _write_csv_report(all_metrics)
 
     if export_path:
+        export_path = Path(export_path)
+        export_path.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(str(export_path), dpi=200, bbox_inches="tight")
         print(f"[Comparison] Figure saved → {export_path}")
     else:
@@ -216,8 +220,8 @@ def _build_comparison_figure(all_metrics: dict, methods: dict,
 
     # ── Bar charts: MAE, RMSE, MARE, R² ──────────────────────────────────
     metric_specs = [
-        ("mae",  "MAE (kg)",    "lower = better",  gs[0, 0]),
-        ("rmse", "RMSE (kg)",   "lower = better",  gs[0, 1]),
+        ("mae",  "MAE (g)",     "lower = better",  gs[0, 0]),
+        ("rmse", "RMSE (g)",    "lower = better",  gs[0, 1]),
         ("mare", "MARE (%)",    "lower = better",  gs[0, 2]),
         ("r2",   "R²",          "higher = better", gs[1, 0]),
     ]
@@ -313,7 +317,7 @@ def _write_latex_table(all_metrics: dict):
         r"  \label{tab:comparison}",
         r"  \begin{tabular}{lrrrr}",
         r"    \toprule",
-        r"    Method & MAE (kg) & RMSE (kg) & MARE (\%) & $R^2$ \\",
+        r"    Method & MAE (g) & RMSE (g) & MARE (\%) & $R^2$ \\",
         r"    \midrule",
     ]
     for m, met in all_metrics.items():

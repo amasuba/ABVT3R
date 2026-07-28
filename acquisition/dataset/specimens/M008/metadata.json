@@ -1,0 +1,13 @@
+{
+  "specimen_id": "M008",
+  "angles_deg": [
+    0,
+    30,
+    60,
+    90,
+    120,
+    150
+  ],
+  "protocol": "dual_camera_6step",
+  "source": "imported from dataset/plants/ (field rig)"
+}

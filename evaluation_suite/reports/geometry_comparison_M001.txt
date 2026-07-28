@@ -1,0 +1,38 @@
+========================================================================
+CROSS-METHOD GEOMETRY COMPARISON — M001
+classical mesh (procedure_alpha)  vs.  NeRF point cloud (M001_assumed_fixed_full)
+========================================================================
+
+NOTE: this is METHOD AGREEMENT, not ground-truth accuracy — there is no
+independently scanned reference geometry for this specimen. See module
+docstring for the full caveat.
+
+Classical mesh surface samples : 100,000
+NeRF raw exported points       : 200,309
+
+--- Floater filtering (DBSCAN, eps=0.05m, min_points=20) ---
+  Clusters found       : 238
+  Largest-cluster kept : 8,028 / 200,309 (4.0%)
+  Discarded as noise   : 192,281 (96.0%)
+  WARNING: >30% of exported points discarded as floater noise — treat the
+  geometry numbers below as low-confidence for this training run.
+
+--- Rigid alignment (ICP, rotation+translation only, no scaling) ---
+  Fitness              : 0.000
+  Inlier RMSE          : 0.0 mm
+  Correction applied   : 0.0 mm translation, 0.00 deg rotation
+
+Classical mesh bounding-box diagonal : 1.945 m  (used to scale F-score thresholds)
+
+--- Surface geometry agreement ---
+  Chamfer Distance     : 528478.4 mm^2  (RMS surface distance = 727.0 mm)
+  HD95 (symmetric)     : 978.4 mm
+
+  F-score @ threshold (rigid alignment, NO scale normalisation):
+    tau=  19.4 mm (1% of bbox diag)  P=0.000  R=0.000  F=0.000
+    tau=  38.9 mm (2% of bbox diag)  P=0.000  R=0.000  F=0.000
+    tau=  97.2 mm (5% of bbox diag)  P=0.000  R=0.000  F=0.000
+
+  Normal Consistency   : 0.478  (1.0 = perfect agreement, |cos angle|)
+
+========================================================================

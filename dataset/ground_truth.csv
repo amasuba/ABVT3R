@@ -1,0 +1,11 @@
+plant_id,date,species_breed,total_fresh_weight_with_pot_g,pot_weight_g,net_weight_g,pot_weight_source,notes
+M001,2026-07-23,Mango,1450.0,710.0,740.0,estimated,
+M002,2026-07-23,Mango,2050.0,850.0,1200.0,estimated,
+M003,2026-07-24,Mango,2210.0,1050.0,1160.0,estimated,
+M004,2026-07-24,Mango,1360.0,650.0,710.0,estimated,
+M005,2026-07-24,Mango,1850.0,960.0,890.0,estimated,
+M006,2026-07-24,Mango,2010.0,900.0,1110.0,estimated,
+M007,2026-07-24,Mango,2150.0,970.0,1180.0,estimated,
+M008,2026-07-24,Mango,1160.0,600.0,560.0,estimated,
+M009,2026-07-24,Mango,2700.0,1230.0,1470.0,estimated,
+M010,2026-07-24,Mango,2350.0,1150.0,1200.0,estimated,

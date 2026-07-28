@@ -1,0 +1,35 @@
+========================================================================
+EFFICIENCY REPORT — ABVT3R
+========================================================================
+
+--- procedure_alpha reconstruction (classical, 12-view dual-camera) ---
+  Specimens measured   : 10
+  Wall-clock time      : mean=168.2s  std=23.3s  min=125.3s  max=217.8s
+  Time per view        : 14.02s  (12 views/specimen)
+  Throughput           : 21.4 specimens/hour  (single-threaded, no batching)
+  Merged points        : mean=161,014  (range 137,638-190,498)
+  Final mesh           : mean 178,345 vertices, 368,041 triangles
+
+--- Biomass model complexity ---
+  RF  : 50 trees, max_depth=3, 460 total decision nodes, 6 input features
+  ANN : architecture [5, 4, 2, 1], 37 parameters
+
+--- NeRF (Nerfstudio nerfacto, assumed-geometry poses) ---
+  GPU                  : NVIDIA GeForce RTX 2050 (4GB VRAM)
+  Rays per batch       : 2048
+  Iteration time       : 0.345-0.475 s/iter (observed range)
+  Throughput           : 4,600-6,150 rays/sec
+  VRAM used            : 1.9-3.5 GB (of 4.0 GB total)
+  Run 'pilot'         : 1,000 iterations — plumbing validation only, floater-dominated
+  Run 'full'         : 50,000 iterations — user-run; ~4.8-6.6h estimated from per-iter timing
+
+--- Views-vs-accuracy ---
+  Not yet measured — would need reconstructing the same specimens with
+  a reduced view subset (e.g. 6 or 4 of the 12) and comparing mesh
+  quality/biomass error against the full 12-view result. The codebase
+  already supports this: ProcedureAlpha.run_specimen_dual(specimen_id,
+  half_angles_deg=<subset>) takes an explicit angle subset. Flagged as
+  a scoped follow-up experiment rather than run speculatively here —
+  see Pipeline.md.
+
+========================================================================

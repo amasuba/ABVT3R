@@ -35,7 +35,7 @@ from datetime import datetime, timezone
 
 from shared.config import (
     CAPTURE_ANGLES_DEG, SPECIMENS_DIR,
-    LEGACY_ANGLES_DEG,
+    LEGACY_ANGLES_DEG, HALF_SWEEP_ANGLES_DEG,
 )
 
 # ---------------------------------------------------------------------------
@@ -155,8 +155,10 @@ class CaptureSession:
         """
         Return plausible-looking synthetic frames for offline testing.
 
-        Depth: radial gradient centred in frame, 1500–3500 mm range so that
-        COLORMAP_JET renders green/yellow (not all-blue at low values).
+        Depth: radial gradient centred in frame, 500-900 mm range so the
+        points survive preprocessing.py's ROI filter (ROI_Z_MIN/MAX =
+        0.2-1.5 m in shared/config.py) -- the pipeline's real working
+        volume, not an arbitrary display-friendly range.
         RGB: green-dominant disc on dark background, rotated per angle to
         make each view visually distinct.
         """
@@ -166,11 +168,11 @@ class CaptureSession:
         xs = np.arange(W)[None, :] - cx
         r  = np.hypot(ys, xs)
 
-        # Depth: plant-like sphere centred at ~2500 mm, background at 3500 mm
+        # Depth: plant-like sphere centred at ~700 mm, background at 900 mm
         max_r = min(cy, cx) * 0.65
         depth_f = np.where(r < max_r,
-                           2500.0 - (max_r - r) * (1000.0 / max_r),
-                           3500.0)
+                           700.0 - (max_r - r) * (200.0 / max_r),
+                           900.0)
         depth = depth_f.astype(np.uint16)
 
         # RGB: green disc, hue rotates with angle for visual distinction
@@ -469,12 +471,22 @@ def _parse_args():
     p.add_argument("--trigger",       action="store_true", help="Pause at each angle and wait for Enter before capturing")
     p.add_argument("--gt",            action="store_true", help="Prompt for ground-truth measurements after capture")
     p.add_argument("--legacy",        action="store_true", help="Use legacy 4-view 90° protocol")
+    p.add_argument("--half-sweep",    action="store_true",
+                   help="Manual dual-camera protocol: 6 physical repositioning steps "
+                        "(0-150 deg); Camera B (180 deg behind Camera A) covers the "
+                        "other 6 angles simultaneously. Use this for a hand-repositioned "
+                        "rig with no motorised turntable.")
     return p.parse_args()
 
 
 def main():
-    args    = _parse_args()
-    angles  = LEGACY_ANGLES_DEG if args.legacy else CAPTURE_ANGLES_DEG
+    args = _parse_args()
+    if args.legacy:
+        angles = LEGACY_ANGLES_DEG
+    elif args.half_sweep:
+        angles = HALF_SWEEP_ANGLES_DEG
+    else:
+        angles = CAPTURE_ANGLES_DEG
     session = CaptureSession(
         specimen_id  = args.specimen_id,
         serial_port  = args.port,

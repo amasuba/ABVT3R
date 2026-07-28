@@ -45,6 +45,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 # Subcommand handlers
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _is_dual_protocol(spec_dir) -> bool:
+    """Check a specimen's metadata.json to see if it uses the dual-camera 6-step protocol."""
+    meta_path = spec_dir / "metadata.json"
+    if not meta_path.exists():
+        return False
+    import json
+    return json.loads(meta_path.read_text()).get("protocol") == "dual_camera_6step"
+
+
 def cmd_alpha(args):
     from procedure_alpha.pipeline import ProcedureAlpha
     pa = ProcedureAlpha()
@@ -56,13 +65,19 @@ def cmd_alpha(args):
             except Exception as exc:
                 print(f"[Run] plant_{pid} failed: {exc}")
     elif args.specimen:
-        pa.run_specimen(args.specimen, cam_label=args.cam)
+        if args.dual:
+            pa.run_specimen_dual(args.specimen)
+        else:
+            pa.run_specimen(args.specimen, cam_label=args.cam)
     elif args.all:
         from shared.config import SPECIMENS_DIR
         for spec_dir in sorted(SPECIMENS_DIR.iterdir()):
             if spec_dir.is_dir():
                 try:
-                    pa.run_specimen(spec_dir.name, cam_label=args.cam)
+                    if _is_dual_protocol(spec_dir):
+                        pa.run_specimen_dual(spec_dir.name)
+                    else:
+                        pa.run_specimen(spec_dir.name, cam_label=args.cam)
                 except Exception as exc:
                     print(f"[Run] {spec_dir.name} failed: {exc}")
     else:
@@ -71,7 +86,7 @@ def cmd_alpha(args):
 
 def cmd_dashboard(_args):
     from biomass_engine.visualisation.results_dashboard import main
-    main()
+    main([])
 
 
 def cmd_evaluate(args):
@@ -142,6 +157,9 @@ def build_parser() -> argparse.ArgumentParser:
                           help="Plant IDs when using --legacy (default: 1-40)")
     p_alpha.add_argument("--cam", default="A", choices=["A", "B"],
                           help="Camera label for depth (new protocol, default A)")
+    p_alpha.add_argument("--dual", action="store_true",
+                          help="Use the manual 6-step dual-camera protocol (--specimen only; "
+                               "--all auto-detects per specimen from metadata.json)")
 
     # dashboard ───────────────────────────────────────────────────────────────
     sub.add_parser("dashboard", help="Biomass prediction results dashboard")

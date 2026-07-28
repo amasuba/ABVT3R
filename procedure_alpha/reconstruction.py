@@ -37,7 +37,8 @@ class ThreeDReconstruction:
         self.log("POINT CLOUD MERGING - FIRST PRINCIPLES")
         self.log("=" * 60)
         
-        angles = [0, 90, 180, 270]
+        n_views = len(fine_registered_pcs)
+        angles = [round(i * 360 / n_views) for i in range(n_views)] if n_views else []
         point_counts = []
         all_points = []
         view_labels = []
@@ -106,7 +107,50 @@ class ThreeDReconstruction:
         print(f"Downsampled to {len(merged_cloud):,} points")
 
         return merged_cloud, view_labels, merge_quality
-        
+
+    def segment_pot_shoot(self, points, n_bins=60, search_frac=(0.15, 0.60)):
+        """
+        Split a merged point cloud into pot (lower cluster) and shoot/canopy
+        (upper cluster) by finding the deepest valley in the point-density
+        histogram along the height (Y) axis.
+
+        This is a geometric heuristic, not semantic segmentation — there is
+        no reliable RGB/texture signal available on this rig (see the
+        reference thesis's "RGB texture mapping failure" finding), so the
+        split point is the height band with the fewest points, restricted to
+        a plausible pot/stem transition zone (15-60% up the plant's total
+        height by default) to avoid picking a spurious valley at the very
+        top or bottom of the point cloud.
+
+        Returns
+        -------
+        threshold_y : float — points with y <= threshold_y are 'pot',
+                      points with y > threshold_y are 'shoot'.
+        """
+        y = points[:, 1]
+        y_min, y_max = y.min(), y.max()
+        hist, edges = np.histogram(y, bins=n_bins, range=(y_min, y_max))
+
+        # Light smoothing so a single sparse bin doesn't create a false valley
+        kernel = np.array([1.0, 2.0, 3.0, 2.0, 1.0])
+        kernel /= kernel.sum()
+        smoothed = np.convolve(hist, kernel, mode='same')
+
+        lo = max(0, int(n_bins * search_frac[0]))
+        hi = min(n_bins, int(n_bins * search_frac[1]))
+        if hi <= lo:
+            hi = lo + 1
+
+        valley_idx = lo + int(np.argmin(smoothed[lo:hi]))
+        threshold_y = (edges[valley_idx] + edges[valley_idx + 1]) / 2
+
+        n_pot = int(np.sum(y <= threshold_y))
+        n_shoot = len(y) - n_pot
+        self.log(f"Pot/shoot split at Y={threshold_y:.4f}m "
+                 f"(pot: {n_pot:,} pts, shoot: {n_shoot:,} pts)")
+
+        return threshold_y
+
     def calculate_point_density_uniformity(self, points, grid_size = 0.02):
         """
         Calculate spatial uniformity of point distribution
@@ -1284,7 +1328,7 @@ class ThreeDReconstruction:
         self.log("\n" + "=" * 80)
         self.log("3D RECONSTRUCTION COMPLETE - SUMMARY")
         self.log("=" * 80)
-        self.log(f"Input: {reconstruction_stats['input_points']:,} points from 4 views")
+        self.log(f"Input: {reconstruction_stats['input_points']:,} points from {len(fine_registered_pcs)} views")
         self.log(f"Final: {reconstruction_stats['final_vertices']:,} vertices, {reconstruction_stats['final_triangles']:,} triangles")
         self.log(f"Holes filled:{reconstruction_stats['holes_filled']}")
         self.log(f"Overall quality: {reconstruction_stats['overall_quality']:.3f}")

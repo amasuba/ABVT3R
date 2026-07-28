@@ -61,7 +61,12 @@ PALETTE = {
 # ---------------------------------------------------------------------------
 
 def _load_gt() -> dict:
-    """Return {label: total_mass_kg} from ground truth registry."""
+    """Return {label: total_mass_g} from ground truth registry.
+
+    Registry stores mass in kg (agb_kg/total_mass_kg columns), but all
+    biomass estimates/comparisons in this dashboard are in grams — the
+    unit the field scale actually reports in — so convert here.
+    """
     gt = {}
     if not GROUND_TRUTH_CSV.exists():
         return gt
@@ -71,11 +76,11 @@ def _load_gt() -> dict:
             # prefer AGB, fallback to total_mass_kg
             val = row.get("agb_kg", "").strip() or row.get("total_mass_kg", "").strip()
             if val:
-                gt[sid] = float(val)
+                gt[sid] = float(val) * 1000
             # also index by legacy_id
             lid = row.get("legacy_id", "").strip()
             if lid and val:
-                gt[lid] = float(val)
+                gt[lid] = float(val) * 1000
     return gt
 
 
@@ -207,7 +212,7 @@ def build_dashboard(records: list[dict], export_path: Path = None):
             ax3.hist(residuals_ann, bins=10, alpha=0.65, label="ANN",
                      color=PALETTE["ann"], edgecolor="white")
         ax3.axvline(0, color="black", lw=1.5, ls="--")
-        ax3.set_xlabel("Residual (kg)")
+        ax3.set_xlabel("Residual (g)")
         ax3.set_ylabel("Count")
         ax3.set_title("Residual Distribution")
         ax3.legend(fontsize=8)
@@ -227,14 +232,14 @@ def build_dashboard(records: list[dict], export_path: Path = None):
         yp = np.array([r["rf_kg"] for r in gt_records if "rf_kg" in r])
         m  = _metrics(yt, yp)
         rows.append(["RF",
-                     f"{m['mae']:.3f}", f"{m['rmse']:.3f}",
+                     f"{m['mae']:.1f}", f"{m['rmse']:.1f}",
                      f"{m['mare']:.1f}%", f"{m['r2']:.3f}"])
     if has_gt and has_ann:
         yt = np.array([r["gt_kg"]  for r in gt_records if "ann_kg" in r])
         yp = np.array([r["ann_kg"] for r in gt_records if "ann_kg" in r])
         m  = _metrics(yt, yp)
         rows.append(["ANN",
-                     f"{m['mae']:.3f}", f"{m['rmse']:.3f}",
+                     f"{m['mae']:.1f}", f"{m['rmse']:.1f}",
                      f"{m['mare']:.1f}%", f"{m['r2']:.3f}"])
     if rows:
         table = ax4.table(
@@ -263,9 +268,9 @@ def build_dashboard(records: list[dict], export_path: Path = None):
             ann_errs = [abs(r["ann_kg"] - r["gt_kg"]) for r in gt_records if "ann_kg" in r]
             ax5.bar([labels[i] for i in order], [ann_errs[i] for i in order],
                     color=PALETTE["ann"], alpha=0.5, label="ANN |error|")
-        ax5.axhline(0.10, color="red", lw=1, ls="--", label="0.10 kg threshold")
+        ax5.axhline(100, color="red", lw=1, ls="--", label="100 g threshold")
         ax5.set_xlabel("Specimen")
-        ax5.set_ylabel("|Error| (kg)")
+        ax5.set_ylabel("|Error| (g)")
         ax5.set_title("Per-Specimen Absolute Error")
         ax5.legend(fontsize=8)
         ax5.tick_params(axis='x', rotation=45, labelsize=6)
@@ -300,7 +305,7 @@ def build_dashboard(records: list[dict], export_path: Path = None):
         ax7.plot(xline, m_lin * xline + b_lin, "--", color=PALETTE["neutral"], lw=1.5)
         r_val = np.corrcoef(vx, gy)[0, 1]
         ax7.set_xlabel("Volume (m³)")
-        ax7.set_ylabel("AGB (kg)")
+        ax7.set_ylabel("AGB (g)")
         ax7.set_title(f"Volume–Biomass  r={r_val:.2f}")
     else:
         ax7.text(0.5, 0.5, "No data", ha="center", va="center",
@@ -339,9 +344,9 @@ def _scatter_panel(ax, y_true, y_pred, title, color, fill_color):
     ax.fill_between([lo, hi], [lo * 0.9, hi * 0.9], [lo * 1.1, hi * 1.1],
                     alpha=0.15, color=fill_color, label="±10%")
     m  = _metrics(y_true, y_pred)
-    ax.set_xlabel("Measured (kg)", fontsize=8)
-    ax.set_ylabel("Predicted (kg)", fontsize=8)
-    ax.set_title(f"{title}\nMAE={m['mae']:.3f}  R²={m['r2']:.3f}", fontsize=9)
+    ax.set_xlabel("Measured (g)", fontsize=8)
+    ax.set_ylabel("Predicted (g)", fontsize=8)
+    ax.set_title(f"{title}\nMAE={m['mae']:.1f}g  R²={m['r2']:.3f}", fontsize=9)
     ax.legend(fontsize=7)
     ax.set_xlim(lo, hi); ax.set_ylim(lo, hi)
 
@@ -383,17 +388,17 @@ def _summary_card(ax, n_total, n_gt, records):
 # CLI
 # ---------------------------------------------------------------------------
 
-def _parse_args():
+def _parse_args(argv=None):
     p = argparse.ArgumentParser(description="ABVT3R Biomass Results Dashboard")
     p.add_argument("--export",    default=None, metavar="FILE",
                    help="Export to PNG or PDF instead of showing interactively")
     p.add_argument("--outputs",   default=str(RECON_OUTPUTS_DIR), metavar="DIR",
                    help="Directory containing reconstruction_stats_*.txt files")
-    return p.parse_args()
+    return p.parse_args(argv)
 
 
-def main():
-    args    = _parse_args()
+def main(argv=None):
+    args    = _parse_args(argv)
     out_dir = Path(args.outputs)
     records = load_prediction_results(out_dir)
 

@@ -63,6 +63,12 @@ CAPTURE_ANGLES_RAD   = [np.deg2rad(a) for a in CAPTURE_ANGLES_DEG]
 # Legacy 4-view protocol (kept for backward compatibility with existing dataset)
 LEGACY_ANGLES_DEG    = [0, 90, 180, 270]
 
+# Manual dual-camera protocol: the rigid A/B pair is physically repositioned
+# through only half the circle (6 stops). Camera B is mounted 180 degrees
+# behind Camera A, so it simultaneously covers the other 6 angles for free —
+# 6 repositioning steps yield all 12 real views, 2 frames each (camA + camB).
+HALF_SWEEP_ANGLES_DEG = CAPTURE_ANGLES_DEG[:N_VIEWS // 2]   # [0,30,60,90,120,150]
+
 # ---------------------------------------------------------------------------
 # Point-cloud preprocessing / ROI filter (metres)
 # ---------------------------------------------------------------------------

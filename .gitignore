@@ -1,6 +1,7 @@
 # Python virtual environments
 abvt/
 abvt310/
+abvt_nerf/
 
 # Python cache
 __pycache__/
@@ -9,9 +10,24 @@ __pycache__/
 *.pyd
 
 # Large generated output arrays (text stats file is kept)
+# NOTE: the real output dir is procedure_alpha/outputs/ (see
+# shared/config.py RECON_OUTPUTS_DIR) — "reconstruction_output/" below
+# never matched anything real; fixed 2026-07-27.
+procedure_alpha/outputs/*.npy
+procedure_alpha/outputs/*.ply
+procedure_alpha/outputs/*.obj
 reconstruction_output/*.npy
 reconstruction_output/*.ply
 reconstruction_output/*.obj
+
+# NeRF training outputs — checkpoints (~230MB each, over GitHub's 100MB
+# hard limit), tensorboard event logs, and exported point clouds. All
+# reproducible from neural_geometry/nerf_data/ via Pipeline.md steps 7-8.
+neural_geometry/nerf_outputs/
+
+# Superseded pre-refresh data (old M001-M005 + old NeRF pilot runs),
+# archived locally for reference but not needed in git history.
+_archive_old_M001-M005_20260726/
 
 # Raw capture scratch files
 depth.npy

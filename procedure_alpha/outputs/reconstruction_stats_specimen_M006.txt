@@ -1,0 +1,62 @@
+=== Procedure Alpha — Reconstruction Stats ===
+Label                : specimen_M006
+Merged points        : 160,258
+Final vertices       : 169,921
+Final triangles      : 348,837
+Surface area         : 8.5465 m²
+Volume               : 0.030368 m³
+Height               : 126.7 cm
+Width                : 69.3 cm
+Depth                : 97.3 cm
+Mesh manifold        : True
+Mesh watertight      : True
+Overall quality Q    : 0.7443
+  Geometric fidelity : 1.0000
+  Coverage balance   : 0.8105
+  Surface smoothness : 0.0000
+  Manifold integrity : 1.0000
+
+--- Pot / Shoot Segmentation (height-density heuristic) ---
+Split height (Y)     : -0.2572 m
+Pot height           : 45.3 cm
+Shoot height         : 81.2 cm
+Pot points           : 45,655
+Shoot points         : 114,603
+Pot volume (approx)  : 0.008516 m³
+Shoot volume (approx): 0.021824 m³
+
+--- ICP Registration Stats ---
+       30°  RMSE=32.696mm  iters=50  converged=True
+       60°  RMSE=20.703mm  iters=50  converged=True
+       90°  RMSE=19.222mm  iters=89  converged=True
+      120°  RMSE=9.150mm  iters=56  converged=True
+      150°  RMSE=13.223mm  iters=118  converged=True
+      180°  RMSE=7.975mm  iters=78  converged=True
+      210°  RMSE=11.664mm  iters=58  converged=True
+      240°  RMSE=7.338mm  iters=195  converged=True
+      270°  RMSE=8.306mm  iters=128  converged=True
+      300°  RMSE=5.040mm  iters=121  converged=True
+      330°  RMSE=12.846mm  iters=94  converged=True
+
+--- View Legend (for by-view coloured point cloud) ---
+  View  0  = camA    0deg
+  View  1  = camA   30deg
+  View  2  = camA   60deg
+  View  3  = camA   90deg
+  View  4  = camA  120deg
+  View  5  = camA  150deg
+  View  6  = camB  180deg
+  View  7  = camB  210deg
+  View  8  = camB  240deg
+  View  9  = camB  270deg
+  View 10  = camB  300deg
+  View 11  = camB  330deg
+
+--- Efficiency ---
+Processing time      : 198.4 s
+Views processed      : 12
+Time per view        : 16.53 s
+
+--- Biomass Prediction (Mango models, grams) ---
+Biomass (RF)  : 1138.7 g
+Biomass (ANN) : 7.7 g

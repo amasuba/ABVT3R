@@ -1,0 +1,41 @@
+{
+  "specimen_id": "TEST_half_sweep_dryrun",
+  "session_start": "2026-07-23T13:48:56.372751+00:00",
+  "session_end": "2026-07-23T13:49:08.500956+00:00",
+  "angles_deg": [
+    0,
+    30,
+    60,
+    90,
+    120,
+    150
+  ],
+  "angular_step": 30,
+  "simulated": true,
+  "capture_results": {
+    "0": {
+      "camA": true,
+      "camB": true
+    },
+    "30": {
+      "camA": true,
+      "camB": true
+    },
+    "60": {
+      "camA": true,
+      "camB": true
+    },
+    "90": {
+      "camA": true,
+      "camB": true
+    },
+    "120": {
+      "camA": true,
+      "camB": true
+    },
+    "150": {
+      "camA": true,
+      "camB": true
+    }
+  }
+}

@@ -1,0 +1,50 @@
+=== Procedure Alpha — Reconstruction Stats ===
+Label                : specimen_TEST_half_sweep_dryrun
+Merged points        : 127,916
+Final vertices       : 126,477
+Final triangles      : 255,078
+Surface area         : 6.2494 m²
+Volume               : 0.019895 m³
+Height               : 105.7 cm
+Width                : 100.1 cm
+Depth                : 95.2 cm
+Mesh manifold        : True
+Mesh watertight      : True
+Overall quality Q    : 0.8081
+  Geometric fidelity : 1.0000
+  Coverage balance   : 1.0000
+  Surface smoothness : 0.0000
+  Manifold integrity : 1.0000
+
+--- Pot / Shoot Segmentation (height-density heuristic) ---
+Split height (Y)     : -0.2823 m
+Pot height           : 25.4 cm
+Shoot height         : 79.9 cm
+Pot points           : 31,461
+Shoot points         : 96,455
+Pot volume (approx)  : 0.004955 m³
+Shoot volume (approx): 0.014562 m³
+
+--- ICP Registration Stats ---
+       30°  RMSE=3.012mm  iters=8  converged=True
+       60°  RMSE=53.323mm  iters=6  converged=True
+       90°  RMSE=3.911mm  iters=17  converged=True
+      120°  RMSE=48.187mm  iters=49  converged=True
+      150°  RMSE=1.222mm  iters=149  converged=True
+
+--- View Legend (for by-view coloured point cloud) ---
+  View  0  = camA    0deg
+  View  1  = camA   30deg
+  View  2  = camA   60deg
+  View  3  = camA   90deg
+  View  4  = camA  120deg
+  View  5  = camA  150deg
+
+--- Efficiency ---
+Processing time      : 309.5 s
+Views processed      : 6
+Time per view        : 51.58 s
+
+--- Biomass Prediction (Mango models, grams) ---
+Biomass (RF)  : 845.3 g
+Biomass (ANN) : 7.2 g

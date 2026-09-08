@@ -110,7 +110,8 @@ class ProcedureAlpha:
 
     def _load_specimen_depths_dual(self,
                                     specimen_id: str,
-                                    half_angles_deg: list[int]) -> tuple[list[np.ndarray], list[int]]:
+                                    half_angles_deg: list[int]
+                                    ) -> tuple[list[np.ndarray], list[int], list[str]]:
         """
         Load depths from BOTH cameras for the manual 6-step dual-camera
         protocol (see HALF_SWEEP_ANGLES_DEG in shared/config.py).
@@ -119,26 +120,46 @@ class ProcedureAlpha:
         directly. Camera B is mounted rigidly 180 degrees behind Camera A,
         so its files -- saved under the SAME loop angle as the simultaneous
         Camera A shot -- represent the true angle (loop_angle + 180) % 360.
+
+        A specimen with an incomplete capture (missing views for one or more
+        angle/camera combinations) reconstructs from whatever views exist
+        rather than failing outright -- the caller sees fewer views and a
+        printed warning, not a crash.
         """
         spec_depth = SPECIMENS_DIR / specimen_id / "depth"
         depths: list[np.ndarray] = []
         true_angles: list[int] = []
+        cams: list[str] = []
+        skipped: list[str] = []
 
         for a in half_angles_deg:
             p = spec_depth / view_filename(a, "A", "depth", "npy")
             if not p.exists():
-                raise FileNotFoundError(f"Depth file missing: {p}")
+                skipped.append(f"camA_{a:03d}")
+                continue
             depths.append(np.load(str(p)))
             true_angles.append(a)
+            cams.append("A")
 
         for a in half_angles_deg:
             p = spec_depth / view_filename(a, "B", "depth", "npy")
             if not p.exists():
-                raise FileNotFoundError(f"Depth file missing: {p}")
+                skipped.append(f"camB_{a:03d}")
+                continue
             depths.append(np.load(str(p)))
             true_angles.append((a + 180) % 360)
+            cams.append("B")
 
-        return depths, true_angles
+        if skipped:
+            print(f"[Alpha] {specimen_id}: reduced-view reconstruction, "
+                  f"{len(depths)} of {2 * len(half_angles_deg)} views available "
+                  f"(missing {', '.join(skipped)})")
+        if len(depths) < 3:
+            raise FileNotFoundError(
+                f"{specimen_id}: only {len(depths)} view(s) available, too few to reconstruct"
+            )
+
+        return depths, true_angles, cams
 
     def _load_legacy_depths(self, plant_id: int) -> tuple[list[np.ndarray], list[int]]:
         """Load depths from the old data_collection/ flat directory."""
@@ -440,7 +461,7 @@ class ProcedureAlpha:
             else:
                 half_angles_deg = HALF_SWEEP_ANGLES_DEG
 
-        depths, angles_deg = self._load_specimen_depths_dual(specimen_id, half_angles_deg)
+        depths, angles_deg, view_cams = self._load_specimen_depths_dual(specimen_id, half_angles_deg)
 
         self._progress("Preprocessing depth maps", 15)
         clouds = self._preprocess_all(depths)
@@ -453,10 +474,9 @@ class ProcedureAlpha:
 
         label = f"specimen_{specimen_id}"
         self._progress("Saving outputs", 85)
-        n_half = len(half_angles_deg)
         stats_path = self._save_outputs(label, recon, reg_stats,
                                         view_angles=angles_deg,
-                                        view_cams=["A"] * n_half + ["B"] * n_half)
+                                        view_cams=view_cams)
 
         elapsed = time.time() - t0
         self._append_timing(stats_path, elapsed, len(angles_deg))

@@ -11,7 +11,7 @@ Panels
 3. Feature importance             (RF Gini importance)
 4. Error by specimen              (sorted bar chart — identify outliers)
 5. Regression metrics table       (MAE, RMSE, MARE, R²)
-6. 3D mesh preview                (if Open3D available)
+6. 3D mesh preview                (once Open3D available)
 
 Usage
 -----

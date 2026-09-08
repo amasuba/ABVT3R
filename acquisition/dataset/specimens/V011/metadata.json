@@ -1,0 +1,33 @@
+{
+  "specimen_id": "V011",
+  "angles_deg": [
+    0,
+    30,
+    60,
+    90,
+    120,
+    150
+  ],
+  "imported_angles_by_cam": {
+    "A": [
+      0,
+      30,
+      60,
+      90,
+      120,
+      150
+    ],
+    "B": [
+      0,
+      30,
+      60
+    ]
+  },
+  "skipped_views": [
+    "camB_090",
+    "camB_120",
+    "camB_150"
+  ],
+  "protocol": "dual_camera_6step",
+  "source": "imported from dataset/plants/ (field rig)"
+}

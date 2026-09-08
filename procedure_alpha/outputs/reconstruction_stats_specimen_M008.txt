@@ -53,10 +53,10 @@ Shoot volume (approx): 0.015489 m³
   View 11  = camB  330deg
 
 --- Efficiency ---
-Processing time      : 144.8 s
+Processing time      : 317.6 s
 Views processed      : 12
-Time per view        : 12.07 s
+Time per view        : 26.47 s
 
---- Biomass Prediction (Mango models, grams) ---
-Biomass (RF)  : 722.4 g
-Biomass (ANN) : 1.5 g
+--- Biomass Prediction (all-species models, grams) ---
+Biomass (RF)  : 817.4 g
+Biomass (ANN) : 206.5 g

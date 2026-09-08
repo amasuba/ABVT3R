@@ -1,0 +1,12 @@
+Specimens (n=41): ['E001', 'E002', 'E003', 'E004', 'E005', 'E006', 'E007', 'E008', 'E009', 'E010', 'E011', 'E012', 'E013', 'E014', 'E015', 'E016', 'E017', 'E018', 'E019', 'E020', 'M001', 'M002', 'M003', 'M004', 'M005', 'M006', 'M007', 'M008', 'M009', 'M010', 'V001', 'V002', 'V003', 'V004', 'V005', 'V006', 'V007', 'V008', 'V009', 'V010', 'V011']
+Species breakdown: {'Eucalyptus': 31, 'Mango': 10}
+Weight range: 400g - 3200g
+
+Model      n   MAE (g)  RMSE (g)  Bias (g)    nRMSE    MARE      R2     CCC
+RF        41     401.1     503.3     +38.0    0.420   0.391   0.363   0.578
+ANN       41    1008.7    1157.7    -998.9    0.967   0.835  -2.368   0.103
+
+RF: worst specimen=V010 carries 25.5% of squared error (even share would be 2.4%)  <-- DOMINATED
+RF: 95% bootstrap CI  RMSE=[382.8, 645.0]g  R²=[0.061, 0.536]
+ANN: worst specimen=E013 carries 10.0% of squared error (even share would be 2.4%)
+ANN: 95% bootstrap CI  RMSE=[977.8, 1328.8]g  R²=[-4.664, -1.163]

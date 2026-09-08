@@ -10,7 +10,7 @@ Width                : 104.3 cm
 Depth                : 54.6 cm
 Mesh manifold        : True
 Mesh watertight      : True
-Overall quality Q    : 0.6694
+Overall quality Q    : 0.6692
   Geometric fidelity : 1.0000
   Coverage balance   : 0.5853
   Surface smoothness : 0.0000
@@ -53,10 +53,10 @@ Shoot volume (approx): 0.019343 m³
   View 11  = camB  330deg
 
 --- Efficiency ---
-Processing time      : 179.3 s
+Processing time      : 385.1 s
 Views processed      : 12
-Time per view        : 14.94 s
+Time per view        : 32.09 s
 
---- Biomass Prediction (Mango models, grams) ---
-Biomass (RF)  : 1214.9 g
-Biomass (ANN) : 1.5 g
+--- Biomass Prediction (all-species models, grams) ---
+Biomass (RF)  : 901.4 g
+Biomass (ANN) : 164.1 g

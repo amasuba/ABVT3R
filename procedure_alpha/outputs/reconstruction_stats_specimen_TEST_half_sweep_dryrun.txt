@@ -45,6 +45,6 @@ Processing time      : 309.5 s
 Views processed      : 6
 Time per view        : 51.58 s
 
---- Biomass Prediction (Mango models, grams) ---
-Biomass (RF)  : 845.3 g
-Biomass (ANN) : 7.2 g
+--- Biomass Prediction (all-species models, grams) ---
+Biomass (RF)  : 814.1 g
+Biomass (ANN) : 125.6 g

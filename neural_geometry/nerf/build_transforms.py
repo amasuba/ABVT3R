@@ -80,7 +80,7 @@ def build_assumed_transforms(specimen_id: str, half_angles_deg=None) -> Path:
     half_angles_deg = half_angles_deg or HALF_SWEEP_ANGLES_DEG
 
     pa = ProcedureAlpha()
-    depths, true_angles = pa._load_specimen_depths_dual(specimen_id, half_angles_deg)
+    depths, true_angles, _ = pa._load_specimen_depths_dual(specimen_id, half_angles_deg)
     clouds = pa._preprocess_all(depths)
     _, icp_transforms, _ = pa._register(clouds, true_angles)
 

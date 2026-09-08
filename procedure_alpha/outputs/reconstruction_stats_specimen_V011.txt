@@ -1,0 +1,56 @@
+=== Procedure Alpha — Reconstruction Stats ===
+Label                : specimen_V011
+Merged points        : 181,283
+Final vertices       : 285,451
+Final triangles      : 590,358
+Surface area         : 14.4638 m²
+Volume               : 0.040372 m³
+Height               : 141.4 cm
+Width                : 140.7 cm
+Depth                : 129.5 cm
+Mesh manifold        : True
+Mesh watertight      : True
+Overall quality Q    : 0.6259
+  Geometric fidelity : 1.0000
+  Coverage balance   : 0.4533
+  Surface smoothness : 0.0000
+  Manifold integrity : 1.0000
+
+--- Pot / Shoot Segmentation (height-density heuristic) ---
+Split height (Y)     : 0.3441 m
+Pot height           : 74.1 cm
+Shoot height         : 67.0 cm
+Pot points           : 159,405
+Shoot points         : 21,878
+Pot volume (approx)  : 0.035487 m³
+Shoot volume (approx): 0.004863 m³
+
+--- ICP Registration Stats ---
+       30°  RMSE=20.656mm  iters=35  converged=True
+       60°  RMSE=39.661mm  iters=81  converged=True
+       90°  RMSE=20.707mm  iters=41  converged=True
+      120°  RMSE=41.122mm  iters=44  converged=True
+      150°  RMSE=10.205mm  iters=62  converged=True
+      180°  RMSE=42.893mm  iters=47  converged=True
+      210°  RMSE=37.736mm  iters=58  converged=True
+      240°  RMSE=35.239mm  iters=39  converged=True
+
+--- View Legend (for by-view coloured point cloud) ---
+  View  0  = camA    0deg
+  View  1  = camA   30deg
+  View  2  = camA   60deg
+  View  3  = camA   90deg
+  View  4  = camA  120deg
+  View  5  = camA  150deg
+  View  6  = camB  180deg
+  View  7  = camB  210deg
+  View  8  = camB  240deg
+
+--- Efficiency ---
+Processing time      : 144.4 s
+Views processed      : 9
+Time per view        : 16.04 s
+
+--- Biomass Prediction (all-species models, grams) ---
+Biomass (RF)  : 1671.6 g
+Biomass (ANN) : 238.6 g

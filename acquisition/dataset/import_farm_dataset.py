@@ -39,6 +39,27 @@ GT_FIELDNAMES = [
 ]
 
 
+def _find_source(plant_dir: Path, subdir: str, cam: str, angle: int) -> Path | None:
+    """Locate the raw file for one (camera, loop-angle) capture.
+
+    Camera A files are always named by the shared loop angle
+    (camA_{angle:03d}.png). Camera B is rigidly 180 degrees behind A, so its
+    file for the same capture step represents true angle (angle+180) % 360 --
+    but different collection sessions named the file differently: some use
+    the shared loop angle (camB_{angle:03d}.png, matching camA), others use
+    camB's own true angle (camB_{(angle+180)%360:03d}.png, per the rig's
+    documented position-naming convention). Try both.
+    """
+    candidates = [subdir + f"/cam{cam}_{angle:03d}.png"]
+    if cam == "B":
+        candidates.append(subdir + f"/cam{cam}_{(angle + 180) % 360:03d}.png")
+    for rel in candidates:
+        p = plant_dir / rel
+        if p.exists():
+            return p
+    return None
+
+
 def import_plant(plant_dir: Path, angles_deg=HALF_SWEEP_ANGLES_DEG) -> str:
     """Convert one field-collected plant folder into a specimens/ entry."""
     specimen_id = plant_dir.name
@@ -48,29 +69,38 @@ def import_plant(plant_dir: Path, angles_deg=HALF_SWEEP_ANGLES_DEG) -> str:
     rgb_dir.mkdir(parents=True, exist_ok=True)
     depth_dir.mkdir(parents=True, exist_ok=True)
 
+    imported_angles: dict[str, list[int]] = {"A": [], "B": []}
+    skipped: list[str] = []
+
     for angle in angles_deg:
         for cam in ("A", "B"):
-            src_img = plant_dir / "images" / f"cam{cam}_{angle:03d}.png"
-            src_dep = plant_dir / "depth"  / f"cam{cam}_{angle:03d}.png"
-            if not src_img.exists() or not src_dep.exists():
-                raise FileNotFoundError(
-                    f"Missing source file for {specimen_id} cam{cam} {angle}deg"
-                )
+            src_img = _find_source(plant_dir, "images", cam, angle)
+            src_dep = _find_source(plant_dir, "depth", cam, angle)
+            if src_img is None or src_dep is None:
+                skipped.append(f"cam{cam}_{angle:03d}")
+                continue
 
             rgb   = np.array(Image.open(src_img).convert("RGB"))
             depth = np.array(Image.open(src_dep)).astype(np.uint16)
 
             Image.fromarray(rgb).save(rgb_dir / view_filename(angle, cam, "rgb", "jpg"))
             np.save(str(depth_dir / view_filename(angle, cam, "depth", "npy")), depth)
+            imported_angles[cam].append(angle)
+
+    if skipped:
+        print(f"[Import] {specimen_id}: missing views, skipped: {', '.join(skipped)}")
 
     meta = {
         "specimen_id": specimen_id,
         "angles_deg":  list(angles_deg),
+        "imported_angles_by_cam": imported_angles,
+        "skipped_views": skipped,
         "protocol":    "dual_camera_6step",
         "source":      "imported from dataset/plants/ (field rig)",
     }
     (spec_dir / "metadata.json").write_text(json.dumps(meta, indent=2))
-    print(f"[Import] {specimen_id}: {len(angles_deg) * 2} views -> {spec_dir}")
+    n_views = len(imported_angles["A"]) + len(imported_angles["B"])
+    print(f"[Import] {specimen_id}: {n_views} views -> {spec_dir}")
     return specimen_id
 
 

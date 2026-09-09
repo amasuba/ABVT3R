@@ -1,0 +1,13 @@
+Stage A: frozen DINOv2 ViT-B/14 vs. classical geometric features
+n=38 (primary set, excludes ['V009', 'V010', 'V011'])
+
+1) Geometric only (baseline): R2=0.451  MAE=330.1g  RMSE=401.7g
+
+ k (PCA)   DINO R2  DINO MAE   Comb R2  Comb MAE
+       3     0.338     356.0     0.440     331.0
+       5     0.407     328.0     0.455     320.2
+       8     0.364     341.4     0.424     328.5
+      12     0.344     342.7     0.396     337.5
+
+Per-fold PCA (fit on training embeddings only, per LOOCV fold) -- no leakage from the held-out specimen into the reduction.
+DINOv2 backbone: frozen dinov2_vitb14, mean-pooled CLS token across all captured views per specimen. No fine-tuning (see sslpipeline.md Stage B).

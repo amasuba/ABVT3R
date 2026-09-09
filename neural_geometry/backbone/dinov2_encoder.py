@@ -37,6 +37,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from typing import List, Dict, Optional, Tuple
 import numpy as np
+from PIL import Image
 
 # DINOv2 requires torch; gracefully degrade if not installed
 try:
@@ -86,6 +87,12 @@ class DINOv2Encoder:
         self.patch_size = self.cfg["patch_size"]
         self.model      = None
         self.freeze     = freeze
+        # DINOv2's patch embedding asserts H and W are exact multiples of
+        # patch_size -- our capture resolution (512x424) isn't. Resize every
+        # view to this fixed square before encoding (37*14=518, a standard
+        # DINOv2 inference resolution) so embeddings are comparable across
+        # views/specimens regardless of source image size.
+        self.input_size = 518
 
         if device is None and TORCH_AVAILABLE:
             self.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -145,19 +152,22 @@ class DINOv2Encoder:
 
     def _preprocess(self, image: np.ndarray) -> "torch.Tensor":
         """
-        Normalise and tensorise a single RGB image.
-        Input: (H, W, 3)  uint8 or float32
-        Output: (1, 3, H', W')  float32 tensor, ImageNet-normalised
+        Resize, normalise and tensorise a single RGB image.
+        Input: (H, W, 3)  uint8 or float32, any source resolution
+        Output: (1, 3, input_size, input_size)  float32 tensor, ImageNet-normalised
         """
         mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
         std  = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
-        img = image.astype(np.float32)
-        if img.max() > 1.0:
-            img /= 255.0
+        img_u8 = image if image.dtype == np.uint8 else image.astype(np.uint8)
+        pil_img = Image.fromarray(img_u8).resize(
+            (self.input_size, self.input_size), Image.BILINEAR)
+        img = np.array(pil_img).astype(np.float32)
+
+        img = img / 255.0 if img.max() > 1.0 else img
         img = (img - mean) / std                          # (H, W, 3)
         img = torch.from_numpy(img).permute(2, 0, 1)     # (3, H, W)
-        return img.unsqueeze(0).to(self.device)           # (1, 3, H, W)
+        return img.unsqueeze(0).to(self.device)           # (1, 3, input_size, input_size)
 
     # -----------------------------------------------------------------------
     # Single-view encoding
@@ -183,8 +193,8 @@ class DINOv2Encoder:
 
         cls   = out["x_norm_clstoken"]               # (1, D)
         patch = out["x_norm_patchtokens"]             # (1, N, D)
-        H     = image.shape[0] // self.patch_size
-        W     = image.shape[1] // self.patch_size
+        H     = self.input_size // self.patch_size
+        W     = self.input_size // self.patch_size
         fmap  = patch.permute(0, 2, 1).reshape(1, self.embed_dim, H, W)
 
         return {"cls_token": cls, "patch_tokens": patch, "feature_map": fmap}
@@ -225,8 +235,8 @@ class DINOv2Encoder:
 
     def _stub_encode(self, image: np.ndarray) -> Dict[str, np.ndarray]:
         """Return zero-filled arrays with correct shapes when PyTorch is absent."""
-        H = image.shape[0] // self.patch_size
-        W = image.shape[1] // self.patch_size
+        H = self.input_size // self.patch_size
+        W = self.input_size // self.patch_size
         N = H * W
         return {
             "cls_token":    np.zeros((1, self.embed_dim), dtype=np.float32),

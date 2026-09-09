@@ -1,12 +1,27 @@
-Specimens (n=41): ['E001', 'E002', 'E003', 'E004', 'E005', 'E006', 'E007', 'E008', 'E009', 'E010', 'E011', 'E012', 'E013', 'E014', 'E015', 'E016', 'E017', 'E018', 'E019', 'E020', 'M001', 'M002', 'M003', 'M004', 'M005', 'M006', 'M007', 'M008', 'M009', 'M010', 'V001', 'V002', 'V003', 'V004', 'V005', 'V006', 'V007', 'V008', 'V009', 'V010', 'V011']
-Species breakdown: {'Eucalyptus': 31, 'Mango': 10}
-Weight range: 400g - 3200g
+PRIMARY (deployed model): n=38, excludes ['V009', 'V010', 'V011'] (estimated pot mass)
+Specimens: ['E001', 'E002', 'E003', 'E004', 'E005', 'E006', 'E007', 'E008', 'E009', 'E010', 'E011', 'E012', 'E013', 'E014', 'E015', 'E016', 'E017', 'E018', 'E019', 'E020', 'M001', 'M002', 'M003', 'M004', 'M005', 'M006', 'M007', 'M008', 'M009', 'M010', 'V001', 'V002', 'V003', 'V004', 'V005', 'V006', 'V007', 'V008']
+Species breakdown: {'Eucalyptus': 28, 'Mango': 10}
+Weight range: 400g - 2350g
 
 Model      n   MAE (g)  RMSE (g)  Bias (g)    nRMSE    MARE      R2     CCC
-RF        41     401.1     503.3     +38.0    0.420   0.391   0.363   0.578
-ANN       41    1008.7    1157.7    -998.9    0.967   0.835  -2.368   0.103
+RF        38     330.1     401.7     +10.3    0.362   0.348   0.451   0.618
+ANN       38     408.2     509.0      +2.0    0.458   0.441   0.118   0.335
 
-RF: worst specimen=V010 carries 25.5% of squared error (even share would be 2.4%)  <-- DOMINATED
-RF: 95% bootstrap CI  RMSE=[382.8, 645.0]g  R²=[0.061, 0.536]
-ANN: worst specimen=E013 carries 10.0% of squared error (even share would be 2.4%)
-ANN: 95% bootstrap CI  RMSE=[977.8, 1328.8]g  R²=[-4.664, -1.163]
+RF: worst specimen=V008 carries 12.6% of squared error (even share would be 2.6%)
+RF: 95% bootstrap CI  RMSE=[320.8, 470.6]g  R²=[0.141, 0.630]
+ANN: worst specimen=M008 carries 15.7% of squared error (even share would be 2.6%)
+ANN: 95% bootstrap CI  RMSE=[397.6, 618.2]g  R²=[-0.338, 0.388]
+
+Sensitivity check — reference — full sample, no exclusion (excludes none, n=41 of 41):
+  RF features : ['volume', 'surface_area', 'height', 'bbox_volume', 'surface_to_volume_ratio', 'height_to_volume_ratio', 'shoot_volume', 'shoot_height', 'on_pedestal']
+  ANN features: ['volume', 'surface_area', 'height', 'bbox_volume', 'compactness', 'overall_quality', 'shoot_volume', 'shoot_height', 'on_pedestal']
+  RF : R²=0.363  MAE=401.1g  RMSE=503.3g
+  ANN: R²=-0.010  MAE=510.7g  RMSE=633.9g
+  (full n=41 headline for comparison, not replaced by this)
+
+Sensitivity check — explored, not adopted — drop V010/V011, shoot-only features (excludes ['V010', 'V011'], n=39 of 41):
+  RF features : ['shoot_volume', 'shoot_surface_area', 'shoot_height', 'shoot_bbox_volume', 'shoot_surface_to_volume_ratio', 'shoot_height_to_volume_ratio', 'on_pedestal']
+  ANN features: ['shoot_volume', 'shoot_surface_area', 'shoot_height', 'shoot_compactness', 'overall_quality', 'on_pedestal']
+  RF : R²=0.387  MAE=361.0g  RMSE=427.3g
+  ANN: R²=0.277  MAE=367.9g  RMSE=464.1g
+  (full n=41 headline for comparison, not replaced by this)

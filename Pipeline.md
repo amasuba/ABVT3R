@@ -38,14 +38,14 @@ each stage's outputs are consumed as inputs by the next.
                     ├─────────────────┬────────────────┤
                     ▼                 ▼                ▼
       ╔═══════════════════╗   evaluation_suite/   biomass_engine/
-      ║ NeRF ARM           ║   efficiency_report.py  train_mango.py
+      ║ NeRF ARM           ║   efficiency_report.py  train_all.py
       ║ (neural_geometry)  ║   [step 8b]              predict_batch.py
       ║  build_transforms.py ║                        [step 5, 8a]
       ║  (reuses procedure_alpha's own  ║                    │
       ║   ICP-composed poses — no        ║                    ▼
       ║   independent calibration)       ║          biomass_engine/trained/
-      ║  → ns-train nerfacto  [step 7]  ║            RF_model_mango,
-      ║  → ns-eval (PSNR/SSIM/LPIPS)    ║            ANN_model_mango
+      ║  → ns-train nerfacto  [step 7]  ║            RF_model_all,
+      ║  → ns-eval (PSNR/SSIM/LPIPS)    ║            ANN_model_all
       ║    [step 8c]                    ║                    │
       ║  → ns-export pointcloud         ║                    ▼
       ╚═══════════════════╝          biomass_engine/visualisation/
@@ -104,6 +104,29 @@ To import a single plant instead of all of them:
 ```bash
 python acquisition/dataset/import_farm_dataset.py --plant M001
 ```
+
+**Camera-B naming: two conventions, handled automatically (2026-09-08).**
+`collect_specimen.py` has been observed writing Camera B's files two
+different ways across sessions — sometimes named by the shared loop angle
+(`camB_030.png`, matching Camera A's simultaneous shot), sometimes by
+Camera B's own true angle (`camB_210.png`, per this doc's "Position naming"
+section above) — and at least one specimen mixed both conventions in the
+same folder. The importer now tries the loop-angle name first, falls back
+to the true-angle name (`loop_angle + 180`) if that file doesn't exist, per
+file. No action needed when collecting new data either way; if a specimen
+is missing views under **both** names, that view is skipped with a printed
+warning rather than crashing the import (see the next paragraph).
+
+**Partial captures no longer hard-fail.** If a specimen is missing files
+for some angle/camera combination (a rig hiccup, a skipped shot), the
+importer used to raise `FileNotFoundError` for the whole specimen. It now
+imports whatever views exist and prints which ones were skipped —
+`ProcedureAlpha.run_specimen_dual` (step 2) does the same for whatever
+ends up in `specimens/{id}/depth/`, reconstructing from as few as 3 views
+rather than refusing. Useful for a rig mishap on collection day, but check
+the printed warning: a specimen with real view gaps should be flagged in
+the ground-truth notes column the same way `V011` was (9 of 12 views —
+see the "Notes" section at the bottom of this file).
 
 ## 2. Run the 3D reconstruction
 
@@ -236,8 +259,15 @@ Once reconstruction stats exist for your specimens, the trained RF/ANN
 models can turn them into biomass estimates:
 
 ```bash
-python run_pipeline.py dashboard
+python biomass_engine/visualisation/results_dashboard.py \
+  --export evaluation_suite/figures/all_species_dashboard.png
 ```
+Use `--export` explicitly — the bare `python run_pipeline.py dashboard`
+subcommand calls `results_dashboard.main([])` with no args, which falls
+through to `plt.show()`; on a headless machine (no display) that's a silent
+no-op (a `FigureCanvasAgg is non-interactive` warning, nothing saved).
+`run_pipeline.py dashboard` doesn't currently forward CLI args through to
+`--export`, so call the script directly instead of through that subcommand.
 
 ## 6. Optional: cross-method evaluation report
 
@@ -247,6 +277,17 @@ registry:
 ```bash
 python run_pipeline.py evaluate --export results/comparison.pdf
 ```
+
+**Read this alongside step 8a's numbers, not instead of them (2026-09-08).**
+This report scores the *deployed* RF/ANN models — already fully trained —
+against every specimen with a reconstruction. If the deployed model's
+training set excludes some specimens (see step 8a: the current primary
+model excludes V009-V011), this report's R² is a **mix**: in-sample for
+whatever was in the training set, genuinely held-out for whatever wasn't.
+That's neither an honest generalisation estimate nor a pure in-sample
+number — don't cite it as either. The number to cite is step 8a's
+leave-one-out R², where *every* prediction comes from a model that never
+saw that specimen during training.
 
 ## 7. Experimental: NeRF comparison arm (Nerfstudio)
 
@@ -474,33 +515,88 @@ run whichever ones you need, in any order, as long as their inputs exist
 
 ### 8a. Extended biomass regression metrics
 
-Beyond plain MAE/RMSE (which `evaluate` in step 6 already gives you),
-this adds the metrics a regression-validation section of a thesis is
-expected to have: Bias (systematic over/under-prediction), nRMSE (scale-
-comparable RMSE), Lin's Concordance Correlation Coefficient (agreement
-with the 1:1 line — catches scale error R² can miss), and a Bland-Altman
-plot (does error grow with plant size?).
+**Superseded `train_mango.py` (2026-09-08).** `train_mango.py` retrained
+on the 10 Mango-only specimens and still exists, but the current entry
+point is `train_all.py`, which trains on every species in
+`dataset/ground_truth.csv` (Mango + Eucalyptus as of the 2026-09 batch —
+E001-E020/V001-V011). `train_mango.py` isn't deleted (kept for reference)
+but nothing downstream reads its output anymore; `predict_batch.py` loads
+`RF_model_all`/`ANN_model_all`, not the `_mango` ones.
 
 ```bash
 source abvt310/bin/activate
-python biomass_engine/train_mango.py
+python biomass_engine/train_all.py
 ```
-Retrains RF and ANN on all 10 Mango specimens (leave-one-out CV, since
-n=10 is too small for a held-out test split), saves the models to
-`biomass_engine/trained/{RF,ANN}_model_mango/`, prints a metrics table,
-and saves `evaluation_suite/figures/mango_bland_altman.png`. Treat the ANN
-result with real skepticism — 10 samples is far below where an MLP can be
-expected to generalise (LOOCV R² was strongly negative at last run; RF is
-the more trustworthy of the two here, and even RF's R² was negative,
-reflecting how little training data exists). This is itself worth stating
-plainly in the dissertation rather than hidden — small-n regression is
-exactly the kind of result the reference metrics doc's "small-n
-statistics" trap warns about over-interpreting.
+
+Beyond plain MAE/RMSE (which `evaluate` in step 6 already gives you),
+this reports the full set a regression-validation section of a thesis is
+expected to have: Bias (systematic over/under-prediction), nRMSE and MARE
+(scale-comparable RMSE and mean absolute relative error — MARE matches
+CropCraft's `ggssvt/eval/metrics.py` convention), Lin's Concordance
+Correlation Coefficient (agreement with the 1:1 line — catches scale error
+R² can miss), a Bland-Altman plot (does error grow with plant size?), and
+two small-n diagnostics ported from CropCraft's `ggssvt` eval suite:
+`leverage_report` (does one specimen dominate the squared error — at
+n<40 a single point can swing R² by a lot) and `bootstrap_interval` (95%
+CI on RMSE/R², so a point estimate isn't over-read).
+
+**Primary training set excludes V009-V011 (2026-09-08 — a reviewed,
+deliberate decision, not the default before this date).** Those three
+have *estimated*, not measured, pot mass — the least reliable
+ground-truth source per `dataset/README.md`'s own methodology notes — and
+V010 alone was carrying 25%+ of RF's squared LOOCV error when included.
+Excluding them moved RF's honest LOOCV R² from 0.363 (n=41, full sample)
+to 0.451 (n=38) — both the point estimate *and* the 95% bootstrap CI floor
+rose together (0.061→0.141), which is the signature of a real
+improvement rather than noise. The full n=41 result is still computed and
+printed/saved every run, labeled as a reference, specifically so this
+exclusion stays a visible, reviewable decision rather than disappearing
+into "the" training set — see `ESTIMATED_POT_MASS_SPECIMENS` and the
+`sensitivity_check()` calls in `train_all.py`. Do not casually change or
+extend which specimens are excluded without the same kind of review
+(check the bootstrap CI moves the right way, not just the point estimate).
+
+**Feature set: whole-mesh + shoot-only, kept together (2026-09-08).**
+`biomass_engine/predict_batch.py`'s `extract_features()` now also computes
+shoot-only quantities (using the same pot/shoot split height each
+specimen's reconstruction already produces) alongside the original
+whole-mesh ones, plus an `on_pedestal` flag for the 30 specimens staged on
+the X001 pedestal (see step 3's segmentation note and the pot-mass caveat
+below). *Replacing* the whole-mesh features with shoot-only ones was
+tried first and made RF worse (R² dropped to 0.22-0.31 depending on
+subset) — the shoot-only surface area/bounding-box volume come from
+cutting the mesh at an approximate density-heuristic split plane rather
+than using its real outer surface, and that cut turned out noisier than
+the whole-mesh quantities it replaced. Keeping both and reducing RF's
+`max_depth` from 3 to 2 to compensate for the wider feature set is what
+actually won. Full ablation numbers are in the `RF_FEATURES` comment in
+`predict_batch.py`.
+
+**ANN target-normalisation fix (2026-09-08) — was a training bug, not a
+data or sample-size problem.** `biomass_engine/models/ann.py` normalised
+input features but never the target, so with He-initialised weights and
+zero biases the network started every prediction near 0 and — given
+Adam's adaptive step size moves each parameter by roughly the learning
+rate (0.001) per update regardless of raw gradient size — could only
+reach an output magnitude of about `0.001 × (epochs × batches/epoch)
+≈ 1.8` units from that start within 200 epochs. That's exactly why LOOCV
+predictions kept collapsing to ~1.9g for specimens actually weighing
+hundreds to thousands of grams. Fixed by z-scoring the target too
+(`fit_y_scaler`/`transform_y`/`inverse_transform_y`, mirroring the
+existing input scaler) and inverse-transforming at `predict()` time.
+Result: ANN's LOOCV R² went from −2.792 to **+0.118** (n=38 primary), bias
+from −887.6g to +2.0g. Still weaker than RF and its 95% CI still straddles
+zero, but no longer worse than predicting the mean. `save_model`/
+`load_model` persist the new target scaler; models saved before this fix
+fall back to an identity transform (harmless, since `predict()` already
+returned raw-scale values for them).
 
 Run `python biomass_engine/predict_batch.py` afterward to refresh the
 per-specimen `Biomass (RF)` / `Biomass (ANN)` lines in
 `reconstruction_stats_specimen_*.txt` from the freshly retrained models,
-then `python run_pipeline.py dashboard` (step 5) to see them plotted.
+then step 5's dashboard to see them plotted. Metrics land in
+`evaluation_suite/reports/train_all_metrics.txt`; figures in
+`evaluation_suite/figures/all_species_{ann_training_loss,bland_altman}.png`.
 
 ### 8b. Efficiency report
 
@@ -634,8 +730,43 @@ changes, only better-conditioned input data.
   rows for all 10 current Mango plants** (net weight, grams — the field
   scale's native unit; earlier Duranta-era code used kg, which is why
   `results_dashboard.py`/`comparison.py` both convert the registry's kg
-  columns ×1000 for display). RF/ANN were retrained on this data via
-  `biomass_engine/train_mango.py` (step 8a) — `RF_model_mango` /
-  `ANN_model_mango` in `biomass_engine/trained/`. If you add more Mango
-  plants later, re-run `import_farm_dataset.py` (step 1) then
-  `train_mango.py` (step 8a) to pull in the new ground truth and retrain.
+  columns ×1000 for display — note the mislabeling this leaves in those
+  two files' own print/LaTeX output, "kg" labels on what are actually
+  grams throughout; harmless since both sides of every comparison use the
+  same convention, but don't cite the printed unit literally). RF/ANN were
+  retrained on this data via `biomass_engine/train_mango.py` (step 8a) at
+  the time — superseded 2026-09-08, see below.
+- **2026-09-08: dataset grew from 10 Mango-only specimens to 41 across two
+  species (Mango + Eucalyptus)** — E001-E020 and V001-V011 added
+  (`dataset/plants/`, merged into `dataset/ground_truth.csv`). Getting
+  there required several fixes, all now permanent pipeline behaviour (see
+  step 1 and step 8a above for the technical detail on each):
+  - A git merge conflict had been left unresolved directly in the raw
+    ground-truth CSV (literal `<<<<<<< HEAD` markers) — resolved by hand,
+    keeping the more accurate *measured* pot-mass rows where both a
+    measured and an estimated version existed.
+  - New captures had landed in `acquisition/dataset/` (the pipeline's
+    derived working directory) instead of `dataset/` (the raw-capture
+    staging directory), which deleted `import_farm_dataset.py` and every
+    prior reconstruction from the working tree. Nothing was lost (a
+    backup existed) — restored to the documented layout.
+  - Camera-B file-naming convention turned out to differ across capture
+    sessions (see step 1) — the importer now tries both.
+  - `X001` was identified as a capture of the inverted-pot pedestal
+    that all of M001-M010 and E001-E010 were staged on for capture, not a
+    plant — excluded from ground truth and reconstruction. CropCraft's own
+    `ggssvt/eval/pot_mass.py`, run independently on the same physical
+    specimens, had already found the same confound from implied pot
+    density alone (36-80 kg/m³ for the 30 affected specimens, vs.
+    250-485 kg/m³ for the unaffected ones) — corroborating evidence this
+    wasn't a one-off measurement glitch.
+  - `V011` has only 9 of 12 views (a rig hiccup) — reconstructed anyway
+    from what exists rather than excluded (see step 1's partial-capture
+    note); flagged in `dataset/ground_truth.csv`'s notes column.
+  - `train_mango.py` → `train_all.py` (step 8a): species-agnostic
+    training, extended metrics, the shoot-based feature engineering, the
+    `on_pedestal` covariate, the V009-V011 exclusion (reviewed decision,
+    reported alongside a full-sample reference), and the ANN
+    target-normalisation fix. If you add more specimens of either species
+    later, re-run `import_farm_dataset.py` (step 1) then `train_all.py`
+    (step 8a) — nothing else needs to change to pick up new data.

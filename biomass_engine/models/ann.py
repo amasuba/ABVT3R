@@ -19,6 +19,8 @@ class BiomassANN:
         self.feature_names = None
         self.scaler_mean = None
         self.scaler_std = None
+        self.y_scaler_mean = None
+        self.y_scaler_std = None
         self.training_hist = {'loss': [], 'val_loss': []}
         
     # ====================================================================
@@ -526,7 +528,33 @@ class BiomassANN:
         Convert normalized features back to original scale
         """
         return X_normalized * self.scaler_std + self.scaler_mean
-        
+
+    def fit_y_scaler(self, y):
+        """
+        Same z-score normalization as fit_scaler, for the target.
+
+        Without this, the network has to learn to output raw grams (target
+        range ~400-3000+) starting from a near-zero prediction (He-initialised
+        weights, zero biases, normalised inputs all average out near 0 through
+        ReLU). Adam's adaptive step size moves each parameter by roughly
+        `learning_rate` per update regardless of the raw gradient's scale, so
+        with lr=0.001 and ~200 epochs x ~9 batches/epoch of steps, the output
+        bias can shift by at most ~1.8-2 units total from its start -- nowhere
+        near enough to reach a target scale in the hundreds/thousands. That
+        ceiling is exactly why LOOCV predictions kept collapsing to ~1.9g
+        regardless of the input. Z-scoring y puts the required output range at
+        O(1), which is within reach of the same step budget.
+        """
+        self.y_scaler_mean = np.mean(y, axis=0, keepdims=True)
+        self.y_scaler_std = np.std(y, axis=0, keepdims=True)
+        self.y_scaler_std = np.where(self.y_scaler_std == 0, 1, self.y_scaler_std)
+
+    def transform_y(self, y):
+        return (y - self.y_scaler_mean) / self.y_scaler_std
+
+    def inverse_transform_y(self, y_normalized):
+        return y_normalized * self.y_scaler_std + self.y_scaler_mean
+
     # ==================================================================
     # Step 9: Training Loop (Main loop/Pipeline)
     # ==================================================================
@@ -562,13 +590,17 @@ class BiomassANN:
             print(f"Batch size: {batch_size}")
             print(f"Learning rate: {learning_rate}")
             
-        # Normalize features
+        # Normalize features and target (see fit_y_scaler's docstring for why
+        # the target needs this too, not just the inputs)
         self.fit_scaler(X_train)
         X_train_norm = self.transform(X_train)
-        
+        self.fit_y_scaler(y_train)
+        y_train_norm = self.transform_y(y_train)
+
         if X_val is not None:
             X_val_norm = self.transform(X_val)
-            
+            y_val_norm = self.transform_y(y_val)
+
         # Initialization of Adam optimizer
         self.initialize_adam_optimizer(learning_rate)
         
@@ -583,7 +615,7 @@ class BiomassANN:
             # Shuffle training data
             indices = np.random.permutation(X_train_norm.shape[0])
             X_shuffled = X_train_norm[indices]
-            y_shuffled = y_train[indices]
+            y_shuffled = y_train_norm[indices]
             
             # Mini-batch training
             n_batches = int(np.ceil(X_train_norm.shape[0] / batch_size))
@@ -616,7 +648,7 @@ class BiomassANN:
             # Validation
             if X_val is not None:
                 y_val_pred, _ = self.forward_propagation(X_val_norm)
-                val_loss = self.mean_squared_error(y_val, y_val_pred)
+                val_loss = self.mean_squared_error(y_val_norm, y_val_pred)
                 self.training_hist['val_loss'].append(val_loss)
                 
                 # Early stopping check
@@ -661,18 +693,19 @@ class BiomassANN:
     def predict(self, X):
         """
         Make predictions on new data
-        
+
         Process:
         - Normalize input using training statistics
         - Forward propagation through network
-        - Return predictions 
+        - Undo the target normalisation to return predictions in grams
         """
         if self.scaler_mean is None:
             raise ValueError("Model not trained: Call train() first.")
-            
+
         X_norm = self.transform(X)
-        predictions, _ = self.forward_propagation(X_norm)
-        
+        predictions_norm, _ = self.forward_propagation(X_norm)
+        predictions = self.inverse_transform_y(predictions_norm)
+
         return predictions
         
     # =================================================================
@@ -826,6 +859,8 @@ class BiomassANN:
             'biases': self.biases,
             'scaler_mean': self.scaler_mean,
             'scaler_std': self.scaler_std,
+            'y_scaler_mean': self.y_scaler_mean,
+            'y_scaler_std': self.y_scaler_std,
             'feature_names': self.feature_names
         }
         
@@ -842,6 +877,11 @@ class BiomassANN:
         self.biases = model_data['biases']
         self.scaler_mean = model_data['scaler_mean']
         self.scaler_std = model_data['scaler_std']
+        # .get() with an identity-transform fallback: models saved before the
+        # target-normalisation fix have no y-scaler, and predict() already
+        # returned raw-scale values for them.
+        self.y_scaler_mean = model_data.get('y_scaler_mean', 0.0)
+        self.y_scaler_std = model_data.get('y_scaler_std', 1.0)
         self.feature_names = model_data['feature_names']
         
         print(f"Model loaded from {filepath}.npy")

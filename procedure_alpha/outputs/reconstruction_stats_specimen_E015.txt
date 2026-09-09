@@ -58,5 +58,5 @@ Views processed      : 12
 Time per view        : 45.10 s
 
 --- Biomass Prediction (all-species models, grams) ---
-Biomass (RF)  : 1600.2 g
-Biomass (ANN) : 287.8 g
+Biomass (RF)  : 1523.6 g
+Biomass (ANN) : 1634.2 g

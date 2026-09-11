@@ -53,10 +53,6 @@ Shoot volume (approx): 0.022411 m³
   View 11  = camB  330deg
 
 --- Efficiency ---
-Processing time      : 550.9 s
+Processing time      : 255.5 s
 Views processed      : 12
-Time per view        : 45.91 s
-
---- Biomass Prediction (all-species models, grams) ---
-Biomass (RF)  : 1555.4 g
-Biomass (ANN) : 1338.9 g
+Time per view        : 21.29 s

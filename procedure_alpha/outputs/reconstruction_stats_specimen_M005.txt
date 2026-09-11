@@ -10,7 +10,7 @@ Width                : 59.5 cm
 Depth                : 107.1 cm
 Mesh manifold        : True
 Mesh watertight      : True
-Overall quality Q    : 0.5911
+Overall quality Q    : 0.5913
   Geometric fidelity : 1.0000
   Coverage balance   : 0.3503
   Surface smoothness : 0.0000
@@ -53,10 +53,6 @@ Shoot volume (approx): 0.017967 m³
   View 11  = camB  330deg
 
 --- Efficiency ---
-Processing time      : 359.6 s
+Processing time      : 152.6 s
 Views processed      : 12
-Time per view        : 29.96 s
-
---- Biomass Prediction (all-species models, grams) ---
-Biomass (RF)  : 986.6 g
-Biomass (ANN) : 912.1 g
+Time per view        : 12.72 s

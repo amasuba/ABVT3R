@@ -47,10 +47,6 @@ Shoot volume (approx): 0.004863 m³
   View  8  = camB  240deg
 
 --- Efficiency ---
-Processing time      : 144.4 s
+Processing time      : 130.8 s
 Views processed      : 9
-Time per view        : 16.04 s
-
---- Biomass Prediction (all-species models, grams) ---
-Biomass (RF)  : 1586.5 g
-Biomass (ANN) : 1283.6 g
+Time per view        : 14.53 s

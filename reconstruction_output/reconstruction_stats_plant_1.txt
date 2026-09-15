@@ -2,7 +2,7 @@
 ==================================================
 
 INPUT DATA:
-  Views processed: 4 (0Â°, 90Â°, 180Â°, 270Â°)
+  Views processed: 4 (0°, 90°, 180°, 270°)
   Total input points: 17,736
 
 MERGING RESULTS:
@@ -13,8 +13,8 @@ MERGING RESULTS:
 FINAL MESH:
   Vertices: 28,247
   Triangles: 56,705
-  Surface area: 1.389273 mÂ²
-  Volume: 0.00349071 mÂ³
+  Surface area: 1.389273 m²
+  Volume: 0.00349071 m³
 
 QUALITY METRICS:
   Overall quality: 0.708
@@ -32,4 +32,4 @@ PLANT BIOMASS ESTIMATION:
   RF Biomass Prediction: 1.31kg
 
 PROCESSING TIME: 
-  Total execution time: 10.12 seconds
+  Total execution time: 13.64 seconds
